@@ -15,7 +15,7 @@
   <header class="flex justify-between items-center py-2 border-b border-slate-800">
     <div>
       <h1 class="text-lg font-bold text-indigo-400">🎓 שיחת וידאו עם אריאל</h1>
-      <p class="text-xs text-slate-400">Gemini Live API — אדם מול אדם</p>
+      <p class="text-xs text-slate-400">פיזיקה • מתמטיקה • אנגלית (כיתה ח')</p>
     </div>
     <span id="conn-status" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
       <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -23,29 +23,41 @@
     </span>
   </header>
 
-  <!-- Split Screen Grid -->
+  <!-- Grid View -->
   <main class="flex-1 my-4 flex flex-col gap-3 justify-center">
     
-    <!-- חלון 1: המורה אריאל (Live Video/Avatar) -->
+    <!-- חלון 1: המורה אריאל (דמות וידאו אנושית) -->
     <div class="relative bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 aspect-video flex flex-col items-center justify-center shadow-2xl">
-      <!-- ויזואליזציה חיה של פני המורה אריאל המגיבים לקול (או שידור הווידאו מ-Gemini) -->
-      <canvas id="teacher-canvas" width="320" height="240" class="w-full h-full object-cover"></canvas>
+      <!-- תמונת דמות המורה -->
+      <img id="teacher-img" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80" alt="אריאל המורה" class="w-full h-full object-cover transition-transform duration-300">
       
+      <!-- אינדיקטור דיבור מונפש -->
+      <div id="speaking-overlay" class="absolute top-3 right-3 bg-indigo-600/90 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium text-white flex items-center gap-2 hidden shadow-lg border border-indigo-400/30">
+        <span class="flex h-2 w-2 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-300 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+        </span>
+        אריאל מדבר...
+      </div>
+
+      <span class="absolute bottom-12 right-2 bg-slate-900/80 px-2.5 py-1 rounded-lg text-xs text-indigo-200 border border-slate-700">
+        👨‍🏫 אריאל (מורה פרטי)
+      </span>
+
       <!-- כתוביות חיות -->
-      <div id="captions" class="absolute bottom-2 inset-x-2 bg-slate-950/80 backdrop-blur-md p-2 rounded-xl text-center text-xs text-indigo-200 min-h-[36px] flex items-center justify-center border border-slate-800">
-        לחץ על כפתור המצלמה כדי להתחיל את השיחה הדו-כיוונית
+      <div id="captions" class="absolute bottom-2 inset-x-2 bg-slate-950/85 backdrop-blur-md p-2 rounded-xl text-center text-xs text-indigo-200 min-h-[36px] flex items-center justify-center border border-slate-800">
+        לחץ על כפתור השיחה הסגול כדי לדבר עם אריאל
       </div>
     </div>
 
-    <!-- חלון 2: הילד / התלמיד (Local Video Stream) -->
+    <!-- חלון 2: הילד / התלמיד (Local Camera Stream) -->
     <div class="relative bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 aspect-video flex items-center justify-center shadow-lg">
       <video id="user-video" autoplay playsinline muted class="w-full h-full object-cover mirror hidden"></video>
-      <canvas id="frame-canvas" class="hidden"></canvas>
       <div id="cam-off-msg" class="flex flex-col items-center text-slate-500">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
         </svg>
-        <span class="text-xs">המצלמה שלך כבויה</span>
+        <span class="text-xs">לחץ על כפתור השיחה להפעלת המצלמה והמיקרופון</span>
       </div>
       <span class="absolute bottom-2 right-2 bg-slate-900/80 px-2 py-0.5 rounded text-[10px] text-slate-300">אתה (תלמיד)</span>
     </div>
@@ -55,10 +67,10 @@
   <!-- בקרות שיחה -->
   <footer class="bg-slate-800/80 backdrop-blur-md p-3 rounded-2xl border border-slate-700 flex items-center justify-around">
     
-    <!-- כפתור מצלמה ומיקרופון יחד -->
+    <!-- כפתור הפעלת שיחה (מצלמה + דיבור) -->
     <button id="call-btn" class="p-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full transition shadow-lg w-16 h-16 flex items-center justify-center animate-pulse">
       <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z" />
       </svg>
     </button>
 
@@ -72,204 +84,96 @@
     const camOffMsg = document.getElementById('cam-off-msg');
     const callBtn = document.getElementById('call-btn');
     const captions = document.getElementById('captions');
-    const teacherCanvas = document.getElementById('teacher-canvas');
-    const canvasCtx = teacherCanvas.getContext('2d');
-    const canvas = document.getElementById('frame-canvas');
+    const teacherImg = document.getElementById('teacher-img');
+    const speakingOverlay = document.getElementById('speaking-overlay');
 
     let isCallActive = false;
     let cameraStream = null;
-    let audioContext = null;
-    let audioProcessor = null;
-    let frameInterval = null;
-    let isSpeaking = false;
-    let mouthWidth = 0;
+    let fullResponseText = '';
 
-    // --- ציור ואיור אריאל (מורה) מונפש בזמן אמת ---
-    function drawTeacher() {
-      canvasCtx.clearRect(0, 0, teacherCanvas.width, teacherCanvas.height);
-
-      // רקע כחול כהה
-      canvasCtx.fillStyle = '#1e1b4b';
-      canvasCtx.fillRect(0, 0, teacherCanvas.width, teacherCanvas.height);
-
-      const centerX = teacherCanvas.width / 2;
-      const centerY = teacherCanvas.height / 2 - 10;
-
-      // הילה מונפשת בזמן דיבור
-      if (isSpeaking) {
-        mouthWidth = Math.sin(Date.now() / 80) * 10 + 12;
-        canvasCtx.beginPath();
-        canvasCtx.arc(centerX, centerY, 58 + Math.sin(Date.now() / 120) * 4, 0, Math.PI * 2);
-        canvasCtx.fillStyle = 'rgba(99, 102, 241, 0.2)';
-        canvasCtx.fill();
-      } else {
-        mouthWidth = 4;
-      }
-
-      // פנים / ראש
-      canvasCtx.beginPath();
-      canvasCtx.arc(centerX, centerY, 48, 0, Math.PI * 2);
-      canvasCtx.fillStyle = '#f59e0b'; // גוון פנים
-      canvasCtx.fill();
-      canvasCtx.lineWidth = 3;
-      canvasCtx.strokeStyle = '#d97706';
-      canvasCtx.stroke();
-
-      // עיניים עם משקפיים (מורה)
-      canvasCtx.fillStyle = '#ffffff';
-      canvasCtx.beginPath();
-      canvasCtx.arc(centerX - 18, centerY - 8, 9, 0, Math.PI * 2);
-      canvasCtx.arc(centerX + 18, centerY - 8, 9, 0, Math.PI * 2);
-      canvasCtx.fill();
-
-      canvasCtx.strokeStyle = '#000000';
-      canvasCtx.lineWidth = 2;
-      canvasCtx.beginPath();
-      canvasCtx.arc(centerX - 18, centerY - 8, 9, 0, Math.PI * 2);
-      canvasCtx.arc(centerX + 18, centerY - 8, 9, 0, Math.PI * 2);
-      canvasCtx.moveTo(centerX - 9, centerY - 8);
-      canvasCtx.lineTo(centerX + 9, centerY - 8);
-      canvasCtx.stroke();
-
-      // אישונים
-      canvasCtx.fillStyle = '#0f172a';
-      canvasCtx.beginPath();
-      canvasCtx.arc(centerX - 18, centerY - 8, 3, 0, Math.PI * 2);
-      canvasCtx.arc(centerX + 18, centerY - 8, 3, 0, Math.PI * 2);
-      canvasCtx.fill();
-
-      // פה מונפש
-      canvasCtx.beginPath();
-      canvasCtx.ellipse(centerX, centerY + 18, 10, Math.max(2, mouthWidth / 2), 0, 0, Math.PI * 2);
-      canvasCtx.fillStyle = '#7f1d1d';
-      canvasCtx.fill();
-
-      // שיער
-      canvasCtx.fillStyle = '#451a03';
-      canvasCtx.fillRect(centerX - 40, centerY - 55, 80, 15);
-
-      // שם
-      canvasCtx.font = 'bold 12px sans-serif';
-      canvasCtx.fillStyle = '#c7d2fe';
-      canvasCtx.textAlign = 'center';
-      canvasCtx.fillText(isSpeaking ? 'אריאל מדבר...' : 'אריאל (מורה פרטי)', centerX, teacherCanvas.height - 15);
-
-      requestAnimationFrame(drawTeacher);
-    }
-    drawTeacher();
-
-    // --- הפעלת שיחה (מצלמה + מיקרופון) והזרמה ב-WS ---
+    // הפעלת מצלמה ושיחה קולית
     callBtn.addEventListener('click', async () => {
       if (!isCallActive) {
         try {
-          // קבלת וידאו ואודיו יחד
-          cameraStream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 }, audio: true });
+          cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
           userVideo.srcObject = cameraStream;
           userVideo.classList.remove('hidden');
           camOffMsg.classList.add('hidden');
-          callBtn.classList.replace('bg-indigo-600', 'bg-red-600');
+          callBtn.classList.replace('bg-indigo-600', 'bg-emerald-600');
           callBtn.classList.remove('animate-pulse');
           isCallActive = true;
 
-          // שליחת פריימים של הוידאו שלך ל-Gemini (אדם מול אדם)
-          frameInterval = setInterval(sendVideoFrame, 1000);
-          startAudioStreaming(cameraStream);
-          captions.innerText = 'מחובר! דבר חופשי עם אריאל';
+          startListening();
         } catch (err) {
-          alert('אישור מצלמה ומיקרופון נדרש לצורך שיחת וידאו');
+          alert('אנא אשר הרשאת מצלמה ומיקרופון בדפדפן');
         }
       } else {
-        stopCall();
+        if (recognition) recognition.start();
       }
     });
 
-    function stopCall() {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(t => t.stop());
-      }
-      clearInterval(frameInterval);
-      if (audioProcessor) audioProcessor.disconnect();
-      userVideo.classList.add('hidden');
-      camOffMsg.classList.remove('hidden');
-      callBtn.classList.replace('bg-red-600', 'bg-indigo-600');
-      callBtn.classList.add('animate-pulse');
-      isCallActive = false;
-      captions.innerText = 'השיחה הסתיימה';
-    }
+    // זיהוי דיבור (Speech Recognition)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
 
-    function sendVideoFrame() {
-      if (!isCallActive || ws.readyState !== WebSocket.OPEN) return;
-      const ctx = canvas.getContext('2d');
-      canvas.width = 160;
-      canvas.height = 120;
-      ctx.drawImage(userVideo, 0, 0, canvas.width, canvas.height);
-      const base64Data = canvas.toDataURL('image/jpeg', 0.4).split(',')[1];
+    function startListening() {
+      if (!SpeechRecognition) return alert('הדפדפן אינו תומך בזיהוי קולי');
+      
+      recognition = new SpeechRecognition();
+      recognition.lang = 'he-IL';
 
-      ws.send(JSON.stringify({
-        type: 'realtime_input',
-        mimeType: 'image/jpeg',
-        data: base64Data
-      }));
-    }
-
-    function startAudioStreaming(stream) {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-      const source = audioContext.createMediaStreamSource(stream);
-      audioProcessor = audioContext.createScriptProcessor(2048, 1, 1);
-
-      audioProcessor.onaudioprocess = (e) => {
-        if (!isCallActive || ws.readyState !== WebSocket.OPEN) return;
-        const inputData = e.inputBuffer.getChannelData(0);
-        const pcm16 = new Int16Array(inputData.length);
-        for (let i = 0; i < inputData.length; i++) {
-          pcm16[i] = Math.max(-1, Math.min(1, inputData[i])) * 0x7FFF;
-        }
-        const base64Audio = btoa(String.fromCharCode(...new Uint8Array(pcm16.buffer)));
-        
-        ws.send(JSON.stringify({
-          type: 'realtime_input',
-          mimeType: 'audio/pcm;rate=16000',
-          data: base64Audio
-        }));
+      recognition.onstart = () => {
+        captions.innerText = 'מקשיב לך... (דבר עכשיו)';
       };
 
-      source.connect(audioProcessor);
-      audioProcessor.connect(audioContext.destination);
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          captions.innerText = `אתה: "${transcript}"`;
+          ws.send(JSON.stringify({ type: 'text_query', text: transcript }));
+        }
+      };
+
+      recognition.onerror = () => {
+        captions.innerText = 'לא הצלחתי לשמוע. נסה לדבר שוב.';
+      };
+
+      recognition.start();
     }
 
-    // --- קבלת האודיו מ-Gemini וניגון ---
+    // קבלת התשובה מ-Groq והנפשת דמות המורה
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
       if (data.type === 'text_chunk') {
-        captions.innerText = `אריאל: "${data.text}"`;
-        isSpeaking = true;
-      } else if (data.type === 'audio_chunk') {
-        playAudioBuffer(data.data);
-      } else if (data.type === 'turn_complete') {
-        setTimeout(() => { isSpeaking = false; }, 500);
+        if (!fullResponseText) fullResponseText = '';
+        fullResponseText += data.text;
+        captions.innerText = `אריאל: "${fullResponseText}"`;
+      } else if (data.type === 'stream_end') {
+        speakText(data.fullText || fullResponseText);
+        fullResponseText = '';
       }
     };
 
-    function playAudioBuffer(base64Data) {
-      if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const binary = atob(base64Data);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      
-      const int16 = new Int16Array(bytes.buffer);
-      const float32 = new Float32Array(int16.length);
-      for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768.0;
+    function speakText(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'he-IL';
 
-      const buffer = audioContext.createBuffer(1, float32.length, 24000);
-      buffer.getChannelData(0).set(float32);
+        utterance.onstart = () => {
+          teacherImg.classList.add('scale-105');
+          speakingOverlay.classList.remove('hidden');
+        };
 
-      const src = audioContext.createBufferSource();
-      src.buffer = buffer;
-      src.connect(audioContext.destination);
-      
-      isSpeaking = true;
-      src.start();
+        utterance.onend = () => {
+          teacherImg.classList.remove('scale-105');
+          speakingOverlay.classList.add('hidden');
+          if (isCallActive) startListening();
+        };
+
+        window.speechSynthesis.speak(utterance);
+      }
     }
   </script>
 </body>
