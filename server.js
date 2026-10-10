@@ -11,10 +11,6 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3000;
 const apiKey = process.env.GEMINI_API_KEY;
 
-if (!apiKey) {
-  console.error("ERROR: GEMINI_API_KEY is not defined in environment variables!");
-}
-
 const genAI = new GoogleGenerativeAI(apiKey || '');
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -25,51 +21,43 @@ const SYSTEM_INSTRUCTION = `
 תפקידך לסייע במקצועות: מתמטיקה, פיזיקה, אנגלית ומדעים.
 - אל תיתן את התשובות הסופיות מייד, אלא הדרך אותו צעד אחר צעד (שיטה סוקרטית).
 - דבר בעברית ברורה, נעימה ובגובה העיניים.
-- שמור על תשובות ממוקדות וקצרות כדי לאפשר שיחה קולית זורמת (עד 2-3 משפטים לתגובה).
+- ענה בקצרה ובמהירות (משפט אחד או שניים בלבד בכל פעם).
 `;
-
-// פונקציית עזר להזרמת תוכן עם ניסיון חוזר במקרה של שגיאת 500 זמנית
-async function streamWithRetry(model, text, ws, retries = 2) {
-  try {
-    const resultStream = await model.generateContentStream(text);
-    for await (const chunk of resultStream.stream) {
-      const chunkText = chunk.text();
-      ws.send(JSON.stringify({
-        type: 'text_chunk',
-        text: chunkText
-      }));
-    }
-    ws.send(JSON.stringify({ type: 'stream_end' }));
-  } catch (err) {
-    if (retries > 0 && err.message && err.message.includes('500')) {
-      console.log(`Temporary 500 error encountered. Retrying... (${retries} left)`);
-      await new Promise(res => setTimeout(res, 1000)); // המתונה של שנייה לפני ניסיון חוזר
-      return streamWithRetry(model, text, ws, retries - 1);
-    }
-    throw err;
-  }
-}
 
 wss.on('connection', (ws) => {
   console.log('Client connected via WebSocket');
+
+  // הגדרת דגם מהיר ופתיחת סשן צ'אט רציף
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    systemInstruction: SYSTEM_INSTRUCTION
+  });
+
+  const chat = model.startChat();
 
   ws.on('message', async (data) => {
     try {
       const message = JSON.parse(data);
 
       if (message.type === 'text_query') {
-        const model = genAI.getGenerativeModel({
-          model: 'gemini-3.8-flash',
-          systemInstruction: SYSTEM_INSTRUCTION
-        });
+        // הזרמת תשובה מתוך סשן הצ'אט במהירות מרבית
+        const resultStream = await chat.sendMessageStream(message.text);
 
-        await streamWithRetry(model, message.text, ws);
+        for await (const chunk of resultStream.stream) {
+          const chunkText = chunk.text();
+          ws.send(JSON.stringify({
+            type: 'text_chunk',
+            text: chunkText
+          }));
+        }
+
+        ws.send(JSON.stringify({ type: 'stream_end' }));
       }
     } catch (err) {
       console.error('Error in streaming:', err);
       ws.send(JSON.stringify({
         type: 'error',
-        message: 'הייתה אי-יציבות רגעית בחיבור ל-Google, אנא נסה לשלוח את ההודעה שוב.'
+        message: 'חלה שגיאה קטנה, נסה לשלוח שוב.'
       }));
     }
   });
