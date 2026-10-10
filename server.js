@@ -28,6 +28,28 @@ const SYSTEM_INSTRUCTION = `
 - שמור על תשובות ממוקדות וקצרות כדי לאפשר שיחה קולית זורמת (עד 2-3 משפטים לתגובה).
 `;
 
+// פונקציית עזר להזרמת תוכן עם ניסיון חוזר במקרה של שגיאת 500 זמנית
+async function streamWithRetry(model, text, ws, retries = 2) {
+  try {
+    const resultStream = await model.generateContentStream(text);
+    for await (const chunk of resultStream.stream) {
+      const chunkText = chunk.text();
+      ws.send(JSON.stringify({
+        type: 'text_chunk',
+        text: chunkText
+      }));
+    }
+    ws.send(JSON.stringify({ type: 'stream_end' }));
+  } catch (err) {
+    if (retries > 0 && err.message && err.message.includes('500')) {
+      console.log(`Temporary 500 error encountered. Retrying... (${retries} left)`);
+      await new Promise(res => setTimeout(res, 1000)); // המתונה של שנייה לפני ניסיון חוזר
+      return streamWithRetry(model, text, ws, retries - 1);
+    }
+    throw err;
+  }
+}
+
 wss.on('connection', (ws) => {
   console.log('Client connected via WebSocket');
 
@@ -41,24 +63,13 @@ wss.on('connection', (ws) => {
           systemInstruction: SYSTEM_INSTRUCTION
         });
 
-        // הזרמת התשובה בזמן אמת (Streaming)
-        const resultStream = await model.generateContentStream(message.text);
-
-        for await (const chunk of resultStream.stream) {
-          const chunkText = chunk.text();
-          ws.send(JSON.stringify({
-            type: 'text_chunk',
-            text: chunkText
-          }));
-        }
-
-        ws.send(JSON.stringify({ type: 'stream_end' }));
+        await streamWithRetry(model, message.text, ws);
       }
     } catch (err) {
       console.error('Error in streaming:', err);
       ws.send(JSON.stringify({
         type: 'error',
-        message: `שגיאה בעיבוד הבקשה: ${err.message || 'שגיאת API'}`
+        message: 'הייתה אי-יציבות רגעית בחיבור ל-Google, אנא נסה לשלוח את ההודעה שוב.'
       }));
     }
   });
