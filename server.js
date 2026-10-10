@@ -28,20 +28,41 @@ const SYSTEM_INSTRUCTION = `
 - ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
 `;
 
+// פונקציית עזר להזרמת הודעות בתוך סשן צ'אט עם מנגנון Retry לשגיאות 500 זמניות
+async function sendMessageWithRetry(chatSession, text, ws, retries = 2) {
+  try {
+    const resultStream = await chatSession.sendMessageStream(text);
+    for await (const chunk of resultStream.stream) {
+      const chunkText = chunk.text();
+      ws.send(JSON.stringify({
+        type: 'text_chunk',
+        text: chunkText
+      }));
+    }
+    ws.send(JSON.stringify({ type: 'stream_end' }));
+  } catch (err) {
+    if (retries > 0 && err.message && err.message.includes('500')) {
+      console.log(`Temporary 500 error from Google. Retrying... (${retries} retries left)`);
+      await new Promise(res => setTimeout(res, 1000));
+      return sendMessageWithRetry(chatSession, text, ws, retries - 1);
+    }
+    throw err;
+  }
+}
+
 wss.on('connection', (ws) => {
   console.log('Client connected via WebSocket');
 
-  // יצירת מודל יציב ומהיר עם זיכרון צ'אט
+  // יצירת סשן צ'אט עם הדגם הנתמך
   let chatSession = null;
-
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       systemInstruction: SYSTEM_INSTRUCTION
     });
     chatSession = model.startChat();
   } catch (err) {
-    console.error('Error initializing model:', err);
+    console.error('Error initializing chat model:', err);
   }
 
   ws.on('message', async (data) => {
@@ -51,30 +72,19 @@ wss.on('connection', (ws) => {
       if (message.type === 'text_query') {
         if (!chatSession) {
           const model = genAI.getGenerativeModel({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.8-flash',
             systemInstruction: SYSTEM_INSTRUCTION
           });
           chatSession = model.startChat();
         }
 
-        // הזרמת התשובה בצורה מהירה דרך Chat Session
-        const resultStream = await chatSession.sendMessageStream(message.text);
-
-        for await (const chunk of resultStream.stream) {
-          const chunkText = chunk.text();
-          ws.send(JSON.stringify({
-            type: 'text_chunk',
-            text: chunkText
-          }));
-        }
-
-        ws.send(JSON.stringify({ type: 'stream_end' }));
+        await sendMessageWithRetry(chatSession, message.text, ws);
       }
     } catch (err) {
-      console.error('Error during streaming:', err);
+      console.error('Error in streaming response:', err);
       ws.send(JSON.stringify({
         type: 'error',
-        message: `שגיאה: ${err.message || 'אנא נסה לשלוח שוב'}`
+        message: `שגיאה: ${err.message || 'אנא נסה לשלוח את ההודעה שוב.'}`
       }));
     }
   });
