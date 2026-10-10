@@ -11,6 +11,10 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3000;
 const apiKey = process.env.GEMINI_API_KEY;
 
+if (!apiKey) {
+  console.error("ERROR: GEMINI_API_KEY is not defined in environment variables!");
+}
+
 const genAI = new GoogleGenerativeAI(apiKey || '');
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -21,17 +25,19 @@ const SYSTEM_INSTRUCTION = `
 תפקידך לסייע במקצועות: מתמטיקה, פיזיקה, אנגלית ומדעים.
 - אל תיתן את התשובות הסופיות מייד, אלא הדרך אותו צעד אחר צעד (שיטה סוקרטית).
 - דבר בעברית ברורה, נעימה ובגובה העיניים.
-- תשובות קצרות, ממוקדות ומהירות בלבד (עד 2-3 משפטים לתגובה).
+- שמור על תשובות ממוקדות וקצרות כדי לאפשר שיחה קולית זורמת (עד 2-3 משפטים לתגובה).
 `;
 
 wss.on('connection', (ws) => {
+  console.log('Client connected via WebSocket');
+
   ws.on('message', async (data) => {
     try {
       const message = JSON.parse(data);
 
       if (message.type === 'text_query') {
         const model = genAI.getGenerativeModel({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-3.8-flash',
           systemInstruction: SYSTEM_INSTRUCTION
         });
 
@@ -49,12 +55,16 @@ wss.on('connection', (ws) => {
         ws.send(JSON.stringify({ type: 'stream_end' }));
       }
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Error in streaming:', err);
       ws.send(JSON.stringify({
         type: 'error',
-        message: 'שגיאה בעיבוד הבקשה'
+        message: `שגיאה בעיבוד הבקשה: ${err.message || 'שגיאת API'}`
       }));
     }
+  });
+
+  ws.on('close', () => {
+    console.log('Client disconnected');
   });
 });
 
