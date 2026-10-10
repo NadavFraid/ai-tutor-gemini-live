@@ -25,7 +25,6 @@ const SYSTEM_INSTRUCTION = `
 wss.on('connection', (ws) => {
   console.log('[LOG] Client connected');
   
-  // היסטוריית השיחה
   const messages = [
     { role: 'system', content: SYSTEM_INSTRUCTION }
   ];
@@ -39,10 +38,10 @@ wss.on('connection', (ws) => {
 
         messages.push({ role: 'user', content: parsed.text });
 
-        // קריאה מהירה במיוחד ל-Groq עם הזרמה (Streaming)
+        // שימוש במודל הנתמך והמהיר ביותר ב-Groq
         const stream = await groq.chat.completions.create({
           messages: messages,
-          model: 'llama-3.1-70b-versatile', // מודל חזק ומהיר במיוחד
+          model: 'llama-3.1-8b-instant',
           temperature: 0.6,
           max_tokens: 300,
           stream: true,
