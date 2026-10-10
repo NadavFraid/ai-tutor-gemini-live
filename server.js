@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 let groq = null;
 if (process.env.GROQ_API_KEY) {
   groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-  console.log('[LOG] Groq SDK Initialized successfully');
+  console.log('[LOG] Groq SDK Initialized');
 } else {
   console.error('[WARNING] GROQ_API_KEY is missing!');
 }
@@ -28,12 +28,33 @@ const SYSTEM_INSTRUCTION = `
 - ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
 `;
 
-// מודלים מעודכנים ופעילים ב-Groq
-const GROQ_MODELS = [
-  'llama-3.3-70b-versatile',
-  'llama3-8b-8192',
-  'mixtral-8x7b-32768'
+// רשימת העדפות לדגמים נתמכים
+const PREFERRED_MODELS = [
+  'openai/gpt-oss-20b',
+  'llama-3.1-8b-instant',
+  'openai/gpt-oss-120b',
+  'llama-3.3-70b-specdec',
+  'llama3-70b-8192'
 ];
+
+async function getActiveGroqModel() {
+  try {
+    const list = await groq.models.list();
+    if (list && list.data && list.data.length > 0) {
+      const availableIds = list.data.map(m => m.id);
+      for (const pref of PREFERRED_MODELS) {
+        if (availableIds.includes(pref)) {
+          return pref;
+        }
+      }
+      // אם אף דגם מועדף לא נמצא, יילקח הדגם הראשון ברשימה הפעילה
+      return list.data[0].id;
+    }
+  } catch (e) {
+    console.error('[WARN] Could not fetch model list from Groq:', e.message);
+  }
+  return 'openai/gpt-oss-20b';
+}
 
 wss.on('connection', (ws, req) => {
   console.log(`[LOG] New client connected from ${req.socket.remoteAddress}`);
@@ -47,39 +68,22 @@ wss.on('connection', (ws, req) => {
         console.log(`[LOG] Query received: "${parsed.text}"`);
 
         if (!groq) {
-          ws.send(JSON.stringify({ 
-            type: 'error', 
-            message: 'חסר GROQ_API_KEY בשרת.' 
-          }));
+          ws.send(JSON.stringify({ type: 'error', message: 'חסר GROQ_API_KEY בשרת.' }));
           return;
         }
 
         messages.push({ role: 'user', content: parsed.text });
 
-        let stream = null;
-        let lastError = null;
+        const modelToUse = await getActiveGroqModel();
+        console.log(`[LOG] Querying Groq using active model: ${modelToUse}`);
 
-        // ניסיון התחברות למודלים פעילים ברשימה
-        for (const modelName of GROQ_MODELS) {
-          try {
-            stream = await groq.chat.completions.create({
-              messages: messages,
-              model: modelName,
-              temperature: 0.6,
-              max_tokens: 300,
-              stream: true,
-            });
-            console.log(`[LOG] Using active Groq model: ${modelName}`);
-            break;
-          } catch (err) {
-            console.warn(`[WARN] Model ${modelName} failed, trying next...`);
-            lastError = err;
-          }
-        }
-
-        if (!stream) {
-          throw lastError || new Error('No Groq models available');
-        }
+        const stream = await groq.chat.completions.create({
+          messages: messages,
+          model: modelToUse,
+          temperature: 0.6,
+          max_tokens: 300,
+          stream: true,
+        });
 
         let fullText = '';
         for await (const chunk of stream) {
@@ -99,9 +103,7 @@ wss.on('connection', (ws, req) => {
     }
   });
 
-  ws.on('close', () => {
-    console.log('[LOG] Client disconnected');
-  });
+  ws.on('close', () => console.log('[LOG] Client disconnected'));
 });
 
 server.listen(PORT, () => {
