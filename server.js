@@ -22,33 +22,32 @@ const SYSTEM_INSTRUCTION = `
 - ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
 `;
 
-// רשימת מודלי צ'אט נתמכים בעדיפות ראשונה ב-Groq
-const CANDIDATE_MODELS = [
-  'llama-3.3-70b-versatile',
-  'mixtral-8x7b-32768',
-  'llama3-70b-8192',
-  'llama3-8b-8192'
+// רשימת דגמי Chat נתמכים ב-Groq
+const VALID_GROQ_CHAT_MODELS = [
+  'openai/gpt-oss-20b',
+  'llama-3.1-8b-instant',
+  'openai/gpt-oss-120b',
+  'qwen/qwen3-32b'
 ];
 
 let activeModelId = null;
 
-async function getWorkingChatModel() {
+async function getAvailableModel() {
   try {
-    const modelsList = await groq.models.list();
-    if (modelsList && modelsList.data) {
-      const activeIds = modelsList.data.map(m => m.id);
-      // מציאת המודל הראשון מהרשימה המומלצת שקיים בחשבון
-      for (const candidate of CANDIDATE_MODELS) {
-        if (activeIds.includes(candidate)) {
-          console.log(`[LOG] Verified working Groq Chat model: ${candidate}`);
+    const list = await groq.models.list();
+    if (list && list.data) {
+      const availableIds = list.data.map(m => m.id);
+      for (const candidate of VALID_GROQ_CHAT_MODELS) {
+        if (availableIds.includes(candidate)) {
+          console.log(`[LOG] Selected active Groq model: ${candidate}`);
           return candidate;
         }
       }
     }
   } catch (err) {
-    console.error('[ERROR] Failed listing models:', err.message);
+    console.error('[ERROR] Failed fetching models list:', err.message);
   }
-  return 'llama-3.3-70b-versatile';
+  return 'openai/gpt-oss-20b';
 }
 
 wss.on('connection', (ws) => {
@@ -63,12 +62,12 @@ wss.on('connection', (ws) => {
     try {
       const parsed = JSON.parse(data);
       if (parsed.type === 'text_query') {
-        console.log(`[LOG] User query: "${parsed.text}"`);
+        console.log(`[LOG] Query: "${parsed.text}"`);
 
         messages.push({ role: 'user', content: parsed.text });
 
         if (!activeModelId) {
-          activeModelId = await getWorkingChatModel();
+          activeModelId = await getAvailableModel();
         }
 
         const stream = await groq.chat.completions.create({
@@ -86,7 +85,7 @@ wss.on('connection', (ws) => {
           const content = chunk.choices[0]?.delta?.content || '';
           if (content) {
             if (firstChunk) {
-              console.log(`[LOG] First chunk received in ${Date.now() - startTime}ms via ${activeModelId}`);
+              console.log(`[LOG] First chunk in ${Date.now() - startTime}ms via ${activeModelId}`);
               firstChunk = false;
             }
             fullText += content;
@@ -95,11 +94,11 @@ wss.on('connection', (ws) => {
         }
 
         messages.push({ role: 'assistant', content: fullText });
-        console.log(`[LOG] Total request time: ${Date.now() - startTime}ms`);
+        console.log(`[LOG] Finished in ${Date.now() - startTime}ms`);
         ws.send(JSON.stringify({ type: 'stream_end' }));
       }
     } catch (err) {
-      console.error('[ERROR] Processing failed:', err);
+      console.error('[ERROR] Stream processing failed:', err);
       activeModelId = null;
       ws.send(JSON.stringify({
         type: 'error',
