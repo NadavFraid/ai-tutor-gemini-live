@@ -28,32 +28,28 @@ const SYSTEM_INSTRUCTION = `
 - ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
 `;
 
-// רשימת העדפות לדגמים נתמכים
-const PREFERRED_MODELS = [
-  'openai/gpt-oss-20b',
+// מודלים יציבים בלבד לשיחה (ללא מודלי GPT-OSS שדורשים Tools)
+const STABLE_CHAT_MODELS = [
+  'llama-3.3-70b-versatile',
   'llama-3.1-8b-instant',
-  'openai/gpt-oss-120b',
-  'llama-3.3-70b-specdec',
   'llama3-70b-8192'
 ];
 
-async function getActiveGroqModel() {
+async function getActiveModel() {
   try {
     const list = await groq.models.list();
-    if (list && list.data && list.data.length > 0) {
+    if (list && list.data) {
       const availableIds = list.data.map(m => m.id);
-      for (const pref of PREFERRED_MODELS) {
-        if (availableIds.includes(pref)) {
-          return pref;
+      for (const candidate of STABLE_CHAT_MODELS) {
+        if (availableIds.includes(candidate)) {
+          return candidate;
         }
       }
-      // אם אף דגם מועדף לא נמצא, יילקח הדגם הראשון ברשימה הפעילה
-      return list.data[0].id;
     }
-  } catch (e) {
-    console.error('[WARN] Could not fetch model list from Groq:', e.message);
+  } catch (err) {
+    console.error('[WARN] Failed to fetch model list:', err.message);
   }
-  return 'openai/gpt-oss-20b';
+  return 'llama-3.3-70b-versatile';
 }
 
 wss.on('connection', (ws, req) => {
@@ -64,6 +60,7 @@ wss.on('connection', (ws, req) => {
   ws.on('message', async (data) => {
     try {
       const parsed = JSON.parse(data);
+
       if (parsed.type === 'text_query') {
         console.log(`[LOG] Query received: "${parsed.text}"`);
 
@@ -74,8 +71,8 @@ wss.on('connection', (ws, req) => {
 
         messages.push({ role: 'user', content: parsed.text });
 
-        const modelToUse = await getActiveGroqModel();
-        console.log(`[LOG] Querying Groq using active model: ${modelToUse}`);
+        const modelToUse = await getActiveModel();
+        console.log(`[LOG] Querying Groq using active chat model: ${modelToUse}`);
 
         const stream = await groq.chat.completions.create({
           messages: messages,
@@ -95,6 +92,7 @@ wss.on('connection', (ws, req) => {
         }
 
         messages.push({ role: 'assistant', content: fullText });
+        console.log(`[LOG] Response sent successfully (${fullText.length} chars)`);
         ws.send(JSON.stringify({ type: 'stream_end', fullText: fullText }));
       }
     } catch (err) {
