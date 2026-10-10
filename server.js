@@ -15,44 +15,54 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const SYSTEM_INSTRUCTION = `
 אתה מורה פרטי סבלני, מעודד ומקצועי לתלמיד בכיתה ח' בישראל.
-שמך נקבע לפי המורה שהתלמיד בחל לבחור (אריאל, מיה, נועם או שירה).
 תפקידך לסייע במקצועות: מתמטיקה, פיזיקה, אנגלית ומדעים.
 - אל תיתן את התשובות הסופיות מייד, אלא הדרך אותו צעד אחר צעד (שיטה סוקרטית).
 - דבר בעברית ברורה, נעימה ובגובה העיניים.
 - ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
 `;
 
-const VALID_GROQ_CHAT_MODELS = [
+const CANDIDATE_MODELS = [
   'llama-3.1-8b-instant',
-  'openai/gpt-oss-20b',
-  'openai/gpt-oss-120b'
+  'llama3-70b-8192',
+  'mixtral-8x7b-32768'
 ];
-
-let activeModelId = 'llama-3.1-8b-instant';
 
 wss.on('connection', (ws) => {
   console.log('[LOG] Client connected');
-
-  const messages = [
-    { role: 'system', content: SYSTEM_INSTRUCTION }
-  ];
+  const messages = [{ role: 'system', content: SYSTEM_INSTRUCTION }];
 
   ws.on('message', async (data) => {
     const startTime = Date.now();
     try {
       const parsed = JSON.parse(data);
       if (parsed.type === 'text_query') {
-        console.log(`[LOG] Query: "${parsed.text}"`);
-
+        console.log(`[LOG] User asked: "${parsed.text}"`);
         messages.push({ role: 'user', content: parsed.text });
 
-        const stream = await groq.chat.completions.create({
-          messages: messages,
-          model: activeModelId,
-          temperature: 0.6,
-          max_tokens: 300,
-          stream: true,
-        });
+        let stream = null;
+        let usedModel = '';
+
+        // ניסיון יצירת סטרים עם מנגנון Fallback אוטומטי בין המודלים
+        for (const modelId of CANDIDATE_MODELS) {
+          try {
+            stream = await groq.chat.completions.create({
+              messages: messages,
+              model: modelId,
+              temperature: 0.6,
+              max_tokens: 250,
+              stream: true,
+            });
+            usedModel = modelId;
+            console.log(`[LOG] Successfully stream started with model: ${modelId}`);
+            break;
+          } catch (modelErr) {
+            console.warn(`[WARN] Model ${modelId} failed:`, modelErr.message);
+          }
+        }
+
+        if (!stream) {
+          throw new Error('כל דגמי Groq עמוסים כרגע. נסה שוב בעוד כמה שניות.');
+        }
 
         let fullText = '';
         for await (const chunk of stream) {
@@ -64,14 +74,14 @@ wss.on('connection', (ws) => {
         }
 
         messages.push({ role: 'assistant', content: fullText });
-        console.log(`[LOG] Response time: ${Date.now() - startTime}ms`);
+        console.log(`[LOG] Completed in ${Date.now() - startTime}ms via ${usedModel}`);
         ws.send(JSON.stringify({ type: 'stream_end', fullText: fullText }));
       }
     } catch (err) {
-      console.error('[ERROR] Processing error:', err);
+      console.error('[ERROR] WS Handling Error:', err.message);
       ws.send(JSON.stringify({
         type: 'error',
-        message: 'חלה שגיאה בתקשורת. נסה שוב.'
+        message: err.message || 'חלה שגיאה בתקשורת מול השרת.'
       }));
     }
   });
