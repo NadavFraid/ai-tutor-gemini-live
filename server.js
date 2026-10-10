@@ -30,35 +30,46 @@ const SYSTEM_INSTRUCTION = `
 
 let activeModelName = null;
 
-// פונקציה לזיהוי אקטיבי של המודל הזמין ב-API Key
-async function discoverWorkingModel() {
+// שליפת רשימת המודלים הפעילים ישירות מ-Google API
+async function fetchValidModel() {
   try {
-    console.log('[LOG] Fetching available models from Google API...');
-    // ניסיון ראשון: בדיקה מול מודלים נפוצים
-    const testCandidates = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    console.log('[LOG] Querying Google API for active models list...');
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    const data = await response.json();
     
-    for (const candidate of testCandidates) {
-      try {
-        const testModel = genAI.getGenerativeModel({ model: candidate });
-        await testModel.generateContent('ping');
-        console.log(`[SUCCESS] Found working model: ${candidate}`);
-        return candidate;
-      } catch (e) {
-        console.log(`[LOG] Model ${candidate} not available (${e.status || e.message})`);
+    if (data.models && data.models.length > 0) {
+      // סינון מודלים שתומכים ב-generateContent
+      const generateModels = data.models.filter(m => 
+        m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent')
+      );
+
+      // עדיפות למודל flash
+      const flashModel = generateModels.find(m => m.name.includes('flash'));
+      if (flashModel) {
+        // הסרת הקידומת models/ אם קיימת
+        const cleanName = flashModel.name.replace('models/', '');
+        console.log(`[SUCCESS] Dynamically selected model: ${cleanName}`);
+        return cleanName;
+      }
+
+      if (generateModels.length > 0) {
+        const cleanName = generateModels[0].name.replace('models/', '');
+        console.log(`[SUCCESS] Dynamically selected fallback model: ${cleanName}`);
+        return cleanName;
       }
     }
   } catch (err) {
-    console.error('[ERROR] Model discovery failed:', err);
+    console.error('[ERROR] Failed to fetch models list:', err);
   }
-  
-  // ברירת מחדל במידה ולא נמצע במבחן המהיר
-  return 'gemini-2.0-flash';
+
+  // ברירת מחדל מפורשת לפי הצעת השגיאה של גוגל
+  return 'gemini-3.8-flash';
 }
 
 // זיהוי המודל בעת עליית השרת
-discoverWorkingModel().then(name => {
-  activeModelName = name;
-  console.log(`[SERVER READY] Using active model: ${activeModelName}`);
+fetchValidModel().then(modelName => {
+  activeModelName = modelName;
+  console.log(`[SERVER READY] Active model set to: ${activeModelName}`);
 });
 
 wss.on('connection', (ws) => {
@@ -71,10 +82,10 @@ wss.on('connection', (ws) => {
       const message = JSON.parse(data);
 
       if (!activeModelName) {
-        activeModelName = await discoverWorkingModel();
+        activeModelName = await fetchValidModel();
       }
 
-      console.log(`[LOG] Using model ${activeModelName} for query: "${message.text}"`);
+      console.log(`[LOG] Query: "${message.text}" using model: ${activeModelName}`);
 
       const model = genAI.getGenerativeModel({
         model: activeModelName,
@@ -90,7 +101,7 @@ wss.on('connection', (ws) => {
 
       for await (const chunk of resultStream.stream) {
         if (firstChunk) {
-          console.log(`[LOG] First chunk received in ${Date.now() - startTime}ms`);
+          console.log(`[LOG] First chunk in ${Date.now() - startTime}ms`);
           firstChunk = false;
         }
         const chunkText = chunk.text();
@@ -102,10 +113,10 @@ wss.on('connection', (ws) => {
       ws.send(JSON.stringify({ type: 'stream_end' }));
 
     } catch (err) {
-      console.error('[ERROR] Request failed:', err);
+      console.error('[ERROR] Stream error:', err);
       ws.send(JSON.stringify({
         type: 'error',
-        message: `שגיאה בתקשורת: ${err.message}`
+        message: `שגיאת תקשורת: ${err.message}`
       }));
     }
   });
