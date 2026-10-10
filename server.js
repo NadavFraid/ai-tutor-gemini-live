@@ -22,25 +22,33 @@ const SYSTEM_INSTRUCTION = `
 - ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
 `;
 
+// רשימת מודלי צ'אט נתמכים בעדיפות ראשונה ב-Groq
+const CANDIDATE_MODELS = [
+  'llama-3.3-70b-versatile',
+  'mixtral-8x7b-32768',
+  'llama3-70b-8192',
+  'llama3-8b-8192'
+];
+
 let activeModelId = null;
 
-// שליפת מודל זמין בזמן אמת דרך ה-API של Groq
-async function getAvailableGroqModel() {
+async function getWorkingChatModel() {
   try {
     const modelsList = await groq.models.list();
-    if (modelsList && modelsList.data && modelsList.data.length > 0) {
-      // ניסיון למצוא מודל Llama, GPT, או Qwen פעיל
-      const preferred = modelsList.data.find(m => 
-        m.id.includes('llama') || m.id.includes('gpt-oss') || m.id.includes('qwen')
-      );
-      const selectedModel = preferred ? preferred.id : modelsList.data[0].id;
-      console.log(`[LOG] Automatically selected active Groq model: ${selectedModel}`);
-      return selectedModel;
+    if (modelsList && modelsList.data) {
+      const activeIds = modelsList.data.map(m => m.id);
+      // מציאת המודל הראשון מהרשימה המומלצת שקיים בחשבון
+      for (const candidate of CANDIDATE_MODELS) {
+        if (activeIds.includes(candidate)) {
+          console.log(`[LOG] Verified working Groq Chat model: ${candidate}`);
+          return candidate;
+        }
+      }
     }
   } catch (err) {
-    console.error('[ERROR] Failed to fetch active models from Groq:', err.message);
+    console.error('[ERROR] Failed listing models:', err.message);
   }
-  return 'openai/gpt-oss-20b'; // ברירת מחדל נתמכת ב-Groq
+  return 'llama-3.3-70b-versatile';
 }
 
 wss.on('connection', (ws) => {
@@ -59,9 +67,8 @@ wss.on('connection', (ws) => {
 
         messages.push({ role: 'user', content: parsed.text });
 
-        // זיהוי דינמי אם עדיין לא נבחר מודל
         if (!activeModelId) {
-          activeModelId = await getAvailableGroqModel();
+          activeModelId = await getWorkingChatModel();
         }
 
         const stream = await groq.chat.completions.create({
@@ -93,7 +100,6 @@ wss.on('connection', (ws) => {
       }
     } catch (err) {
       console.error('[ERROR] Processing failed:', err);
-      // איפוס המודל למקרה של תקלה זמנית מול מודל מסוים
       activeModelId = null;
       ws.send(JSON.stringify({
         type: 'error',
