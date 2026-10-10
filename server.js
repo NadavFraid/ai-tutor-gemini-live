@@ -15,44 +15,24 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const SYSTEM_INSTRUCTION = `
 אתה מורה פרטי סבלני, מעודד ומקצועי לתלמיד בכיתה ח' בישראל.
-שמך הוא 'אריאל'.
+שמך נקבע לפי המורה שהתלמיד בחל לבחור (אריאל, מיה, נועם או שירה).
 תפקידך לסייע במקצועות: מתמטיקה, פיזיקה, אנגלית ומדעים.
 - אל תיתן את התשובות הסופיות מייד, אלא הדרך אותו צעד אחר צעד (שיטה סוקרטית).
 - דבר בעברית ברורה, נעימה ובגובה העיניים.
 - ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
 `;
 
-// רשימת דגמי Chat נתמכים ב-Groq עם מנגנון סינון בדיקת זמינות
 const VALID_GROQ_CHAT_MODELS = [
-  'openai/gpt-oss-20b',
   'llama-3.1-8b-instant',
-  'openai/gpt-oss-120b',
-  'qwen/qwen3-32b'
+  'openai/gpt-oss-20b',
+  'openai/gpt-oss-120b'
 ];
 
-let activeModelId = null;
-
-async function getAvailableModel() {
-  try {
-    const list = await groq.models.list();
-    if (list && list.data) {
-      const availableIds = list.data.map(m => m.id);
-      for (const candidate of VALID_GROQ_CHAT_MODELS) {
-        if (availableIds.includes(candidate)) {
-          console.log(`[LOG] Selected active Groq model: ${candidate}`);
-          return candidate;
-        }
-      }
-    }
-  } catch (err) {
-    console.error('[ERROR] Failed fetching models list:', err.message);
-  }
-  return 'openai/gpt-oss-20b';
-}
+let activeModelId = 'llama-3.1-8b-instant';
 
 wss.on('connection', (ws) => {
   console.log('[LOG] Client connected');
-  
+
   const messages = [
     { role: 'system', content: SYSTEM_INSTRUCTION }
   ];
@@ -66,10 +46,6 @@ wss.on('connection', (ws) => {
 
         messages.push({ role: 'user', content: parsed.text });
 
-        if (!activeModelId) {
-          activeModelId = await getAvailableModel();
-        }
-
         const stream = await groq.chat.completions.create({
           messages: messages,
           model: activeModelId,
@@ -79,37 +55,28 @@ wss.on('connection', (ws) => {
         });
 
         let fullText = '';
-        let firstChunk = true;
-
         for await (const chunk of stream) {
           const content = chunk.choices[0]?.delta?.content || '';
           if (content) {
-            if (firstChunk) {
-              console.log(`[LOG] First chunk in ${Date.now() - startTime}ms via ${activeModelId}`);
-              firstChunk = false;
-            }
             fullText += content;
             ws.send(JSON.stringify({ type: 'text_chunk', text: content }));
           }
         }
 
         messages.push({ role: 'assistant', content: fullText });
-        console.log(`[LOG] Finished in ${Date.now() - startTime}ms`);
+        console.log(`[LOG] Response time: ${Date.now() - startTime}ms`);
         ws.send(JSON.stringify({ type: 'stream_end', fullText: fullText }));
       }
     } catch (err) {
-      console.error('[ERROR] Stream processing failed:', err);
-      activeModelId = null;
+      console.error('[ERROR] Processing error:', err);
       ws.send(JSON.stringify({
         type: 'error',
-        message: 'חלה שגיאה בתקשורת. אנא נסה לשלוח שוב.'
+        message: 'חלה שגיאה בתקשורת. נסה שוב.'
       }));
     }
   });
 
-  ws.on('close', () => {
-    console.log('[LOG] Client disconnected');
-  });
+  ws.on('close', () => console.log('[LOG] Client disconnected'));
 });
 
 server.listen(PORT, () => {
