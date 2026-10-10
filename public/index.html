@@ -26,7 +26,7 @@
       </span>
     </div>
 
-    <!-- גלריית מורים לבחירה -->
+    <!-- גלריית מורים -->
     <div class="flex gap-2 overflow-x-auto py-1 no-scrollbar">
       <button id="t-btn-0" type="button" onclick="selectTeacher(0)" class="teacher-btn border-2 border-indigo-500 rounded-xl p-1 bg-slate-800 flex items-center gap-2 min-w-[100px] transition cursor-pointer">
         <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" class="w-8 h-8 rounded-full object-cover">
@@ -54,7 +54,6 @@
     <div class="relative bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 aspect-video flex flex-col items-center justify-center shadow-2xl">
       <img id="teacher-img" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80" alt="המורה" class="w-full h-full object-cover transition-all duration-300">
       
-      <!-- אינדיקטור דיבור -->
       <div id="speaking-overlay" class="absolute top-3 right-3 bg-indigo-600/90 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium text-white flex items-center gap-2 hidden shadow-lg border border-indigo-400/30">
         <span class="flex h-2 w-2 relative">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-300 opacity-75"></span>
@@ -120,7 +119,6 @@
     var fullResponseText = '';
     var isListening = false;
 
-    // התאמת פרוטוקול WebSocket אוטומטית (wss למאובטח / ws לרגיל)
     var wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     var ws = new WebSocket(wsProtocol + '//' + location.host);
 
@@ -163,18 +161,21 @@
       }
     }
 
-    async function toggleCamera() {
+    function toggleCamera() {
       if (!isCamOn) {
-        try {
-          cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-          userVideo.srcObject = cameraStream;
-          userVideo.classList.remove('hidden');
-          camOffMsg.classList.add('hidden');
-          camBtn.classList.replace('bg-slate-700', 'bg-emerald-600');
-          isCamOn = true;
-        } catch (err) {
-          alert('לא ניתן לפתוח את המצלמה. אנא ודא הרשאות מצלמה בדפדפן.');
-        }
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+          .then(function(stream) {
+            cameraStream = stream;
+            userVideo.srcObject = stream;
+            userVideo.classList.remove('hidden');
+            camOffMsg.classList.add('hidden');
+            camBtn.classList.replace('bg-slate-700', 'bg-emerald-600');
+            isCamOn = true;
+          })
+          .catch(function(err) {
+            console.error('Camera Error:', err);
+            alert('לא ניתן לפתוח מצלמה. ודא שאישרת הרשאה בדפדפן.');
+          });
       } else {
         if (cameraStream) {
           cameraStream.getTracks().forEach(function(track) { track.stop(); });
