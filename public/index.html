@@ -3,161 +3,164 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>אריאל - מורה פרטי</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-    body { background-color: #0f172a; color: #ffffff; padding: 15px; max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; min-height: 100vh; justify-content: space-between; }
-    header { text-align: center; border-bottom: 1px solid #334155; padding-bottom: 10px; }
-    h1 { font-size: 1.2rem; color: #818cf8; margin-bottom: 5px; }
-    .gallery { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; justify-content: center; }
-    .teacher-card { background: #1e293b; border: 2px solid #334155; border-radius: 12px; padding: 6px 12px; display: flex; items-center; gap: 8px; cursor: pointer; }
-    .teacher-card.active { border-color: #6366f1; background: #312e81; }
-    .teacher-card img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
-    
-    .video-grid { display: flex; flex-direction: column; gap: 12px; margin: 15px 0; flex: 1; justify-content: center; }
-    .video-box { background: #1e293b; border: 1px solid #334155; border-radius: 16px; aspect-ratio: 16/9; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-    .video-box img, .video-box video { width: 100%; height: 100%; object-fit: cover; }
-    .mirror { transform: scaleX(-1); }
-    
-    .caption-overlay { position: absolute; bottom: 8px; left: 8px; right: 8px; background: rgba(15, 23, 42, 0.85); padding: 8px; border-radius: 8px; text-align: center; font-size: 0.8rem; color: #c7d2fe; border: 1px solid #334155; }
-    .label-tag { position: absolute; top: 8px; right: 8px; background: rgba(15, 23, 42, 0.75); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; color: #cbd5e1; }
-    
-    .controls { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 12px; display: flex; justify-content: space-around; align-items: center; }
-    .btn { background: #334155; border: none; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.2rem; }
-    .btn-main { background: #4f46e5; width: 64px; height: 64px; font-size: 1.5rem; }
-    .btn-active { background: #059669; }
-    .btn-recording { background: #dc2626; }
-    
-    #status-bar { background: #020617; border: 1px solid #1e293b; color: #10b981; font-family: monospace; font-size: 0.75rem; padding: 6px; border-radius: 8px; text-align: center; margin-bottom: 10px; }
-  </style>
+  <title>אריאל - מורה פרטי קולי</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-
-  <header>
-    <h1>🎓 שיחת וידאו עם מורה פרטי</h1>
-    <div class="gallery">
-      <div class="teacher-card active" id="t-0">
-        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80">
-        <span>אריאל</span>
-      </div>
-      <div class="teacher-card" id="t-1">
-        <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80">
-        <span>מיה</span>
-      </div>
-      <div class="teacher-card" id="t-2">
-        <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=150&q=80">
-        <span>נועם</span>
-      </div>
-    </div>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between p-4 max-w-md mx-auto">
+  
+  <!-- כותרת -->
+  <header class="text-center my-4">
+    <h1 class="text-2xl font-bold text-indigo-600">🎓 אריאל - מורה פרטי קולי</h1>
+    <p class="text-sm text-slate-500 mt-1">פיזיקה • מתמטיקה • אנגלית (כיתה ח')</p>
   </header>
 
-  <main class="video-grid">
-    <!-- חלון המורה -->
-    <div class="video-box">
-      <img id="teacher-img" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80">
-      <div class="label-tag" id="teacher-name-tag">👨‍🏫 אריאל</div>
-      <div class="caption-overlay" id="captions">לחץ על כפתור המיקרופון או המצלמה כדי להתחיל</div>
-    </div>
-
-    <!-- חלון התלמיד -->
-    <div class="video-box">
-      <video id="user-video" autoplay playsinline muted class="mirror" style="display:none;"></video>
-      <div id="cam-placeholder" style="color:#64748b; text-align:center;">
-        📷<br><span style="font-size:0.75rem;">המצלמה כבויה</span>
-      </div>
-      <div class="label-tag">אתה (תלמיד)</div>
+  <!-- צ'אט / תצוגת שיחה -->
+  <main id="chat-box" class="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-slate-200 overflow-y-auto my-2 space-y-3 min-h-[300px] max-h-[450px]">
+    <div class="bg-indigo-50 p-3 rounded-xl text-indigo-900 text-sm">
+      שלום! אני אריאל. לחץ על כפתור המיקרופון ודבר איתי, או הקלד שאלה!
     </div>
   </main>
 
-  <div id="status-bar">סטטוס: המערכת מוכנה</div>
+  <!-- אזור שליטה: מיקרופון והקלדה -->
+  <footer class="mt-2 space-y-3">
+    <!-- כפתור שיחה קולית ראשית -->
+    <div class="flex justify-center">
+      <button id="mic-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-5 shadow-lg transition flex items-center justify-center w-20 h-20">
+        <svg id="mic-icon" xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z" />
+        </svg>
+      </button>
+    </div>
+    <p id="status-text" class="text-center text-xs text-slate-500">לחץ על המיקרופון כדי להקליט</p>
 
-  <footer class="controls">
-    <button class="btn" id="cam-btn" title="מצלמה">📷</button>
-    <button class="btn btn-main" id="mic-btn" title="מיקרופון">🎤</button>
+    <!-- טופס הקלדה כגיבוי -->
+    <form id="input-form" class="flex gap-2">
+      <input type="text" id="user-input" placeholder="או הקלד שאלה כאן..." class="flex-1 border border-slate-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+      <button type="submit" id="send-btn" class="bg-slate-800 text-white font-medium px-4 py-2 rounded-xl text-sm hover:bg-slate-900 transition">שלח</button>
+    </form>
   </footer>
 
   <script>
-    const teachers = [
-      { name: 'אריאל', img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80', tag: '👨‍🏫 אריאל' },
-      { name: 'מיה', img: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80', tag: '👩‍🏫 מיה' },
-      { name: 'נועם', img: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=600&q=80', tag: '👨‍🏫 נועם' }
-    ];
-
-    let currentTeacher = 0;
-    let isCamOn = false;
-    let cameraStream = null;
-    let isListening = false;
-    let fullText = '';
-
-    const statusBar = document.getElementById('status-bar');
-    const teacherImg = document.getElementById('teacher-img');
-    const teacherNameTag = document.getElementById('teacher-name-tag');
-    const captions = document.getElementById('captions');
-    const userVideo = document.getElementById('user-video');
-    const camPlaceholder = document.getElementById('cam-placeholder');
-    const camBtn = document.getElementById('cam-btn');
-    const micBtn = document.getElementById('mic-btn');
-
-    function updateStatus(msg) {
-      statusBar.innerText = 'סטטוס: ' + msg;
-    }
-
-    // WebSocket
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(protocol + '//' + location.host);
+    const ws = new WebSocket(`${protocol}//${location.host}`);
+    const chatBox = document.getElementById('chat-box');
+    const form = document.getElementById('input-form');
+    const input = document.getElementById('user-input');
+    const micBtn = document.getElementById('mic-btn');
+    const statusText = document.getElementById('status-text');
 
-    ws.onopen = () => updateStatus('מחובר לשרת');
-    ws.onerror = () => updateStatus(' שגיאת חיבור לשרת');
+    let currentBotMsgElement = null;
+    let fullResponseText = '';
 
-    // בחירת מורה
-    teachers.forEach((t, i) => {
-      const card = document.getElementById('t-' + i);
-      if (card) {
-        card.onclick = function() {
-          teachers.forEach((_, idx) => {
-            const el = document.getElementById('t-' + idx);
-            if (el) el.classList.remove('active');
-          });
-          card.classList.add('active');
-          currentTeacher = i;
-          teacherImg.src = t.img;
-          teacherNameTag.innerText = t.tag;
-          updateStatus('נבחר/ה ' + t.name);
-        };
-      }
-    });
-
-    // מצלמה
-    camBtn.onclick = async function() {
-      if (!isCamOn) {
-        try {
-          cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
-          userVideo.srcObject = cameraStream;
-          userVideo.style.display = 'block';
-          camPlaceholder.style.display = 'none';
-          camBtn.classList.add('btn-active');
-          isCamOn = true;
-          updateStatus('מצלמה פעילה');
-        } catch (err) {
-          alert('נדרש אישור גישה למצלמה בדפדפן');
-          updateStatus('שגיאה בהפעלת מצלמה');
-        }
-      } else {
-        if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
-        userVideo.style.display = 'none';
-        camPlaceholder.style.display = 'block';
-        camBtn.classList.remove('btn-active');
-        isCamOn = false;
-        updateStatus('מצלמה כבויה');
-      }
-    };
-
-    // זיהוי דיבור
+    // זיהוי דיבור (Speech Recognition)
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null;
+    let isListening = false;
 
     if (SpeechRecognition) {
       recognition = new SpeechRecognition();
       recognition.lang = 'he-IL';
+      recognition.continuous = false;
+      recognition.interimResults = false;
 
-      recognition.
+      recognition.onstart = () => {
+        isListening = true;
+        micBtn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+        micBtn.classList.add('bg-red-500', 'animate-pulse');
+        statusText.innerText = 'מקשיב לך... (דבר עכשיו)';
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          sendQuery(transcript);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        stopListening();
+        statusText.innerText = 'לא הצלחתי לשמוע, נסה שוב או הקלד.';
+      };
+
+      recognition.onend = () => {
+        stopListening();
+      };
+    } else {
+      statusText.innerText = 'הדפדפן אינו תומך בזיהוי קולי, ניתן להקליד כרגיל.';
+    }
+
+    function stopListening() {
+      isListening = false;
+      micBtn.classList.remove('bg-red-500', 'animate-pulse');
+      micBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+      statusText.innerText = 'לחץ על המיקרופון כדי לדבר';
+    }
+
+    micBtn.addEventListener('click', () => {
+      if (!recognition) return;
+      if (isListening) {
+        recognition.stop();
+      } else {
+        window.speechSynthesis.cancel();
+        recognition.start();
+      }
+    });
+
+    // תקשורת WebSocket
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === 'text_chunk') {
+        if (!currentBotMsgElement) {
+          currentBotMsgElement = createMessageElement('אריאל', '', 'bg-indigo-50 text-indigo-900');
+          fullResponseText = '';
+        }
+        currentBotMsgElement.innerHTML += data.text.replace(/\n/g, '<br>');
+        fullResponseText += data.text;
+        chatBox.scrollTop = chatBox.scrollHeight;
+      } else if (data.type === 'stream_end') {
+        speakText(data.fullText || fullResponseText);
+        currentBotMsgElement = null;
+      } else if (data.type === 'error') {
+        createMessageElement('מערכת', data.message, 'bg-red-50 text-red-800');
+      }
+    };
+
+    function sendQuery(text) {
+      createMessageElement('אתה', text, 'bg-slate-100 text-slate-800');
+      ws.send(JSON.stringify({ type: 'text_query', text }));
+      statusText.innerText = 'אריאל חושב...';
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      window.speechSynthesis.cancel();
+      sendQuery(text);
+      input.value = '';
+    });
+
+    function createMessageElement(sender, text, bgClass) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `p-3 rounded-xl text-sm ${bgClass}`;
+      msgDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
+      chatBox.appendChild(msgDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      return msgDiv;
+    }
+
+    // הקראת טקסט (Text-to-Speech)
+    function speakText(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'he-IL';
+        utterance.rate = 1.0;
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+  </script>
+</body>
+</html>
