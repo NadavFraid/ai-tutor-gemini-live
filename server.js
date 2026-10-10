@@ -9,7 +9,14 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3000;
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+// אתחול Groq SDK
+let groq = null;
+if (process.env.GROQ_API_KEY) {
+  groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+} else {
+  console.error('[CRITICAL] GROQ_API_KEY environment variable is missing!');
+}
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -22,50 +29,35 @@ const SYSTEM_INSTRUCTION = `
 - ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
 `;
 
-const VALID_GROQ_CHAT_MODELS = [
-  'openai/gpt-oss-20b',
+// רשימת דגמים נתמכים
+const FALLBACK_MODELS = [
   'llama-3.1-8b-instant',
+  'openai/gpt-oss-20b',
   'openai/gpt-oss-120b'
 ];
 
-let activeModelId = null;
-
-async function getAvailableModel() {
-  try {
-    const list = await groq.models.list();
-    if (list && list.data) {
-      const availableIds = list.data.map(m => m.id);
-      for (const candidate of VALID_GROQ_CHAT_MODELS) {
-        if (availableIds.includes(candidate)) {
-          console.log(`[LOG] Selected active Groq model: ${candidate}`);
-          return candidate;
-        }
-      }
-    }
-  } catch (err) {
-    console.error('[ERROR] Failed fetching models list:', err.message);
-  }
-  return 'openai/gpt-oss-20b';
-}
+let activeModelId = 'llama-3.1-8b-instant';
 
 wss.on('connection', (ws) => {
-  console.log('[LOG] Client connected');
-  const messages = [{ role: 'system', content: SYSTEM_INSTRUCTION }];
+  console.log('[LOG] Client connected via WebSocket');
+
+  const messages = [
+    { role: 'system', content: SYSTEM_INSTRUCTION }
+  ];
 
   ws.on('message', async (data) => {
     const startTime = Date.now();
     try {
       const parsed = JSON.parse(data);
-      if (parsed.type === 'text_query' || parsed.type === 'realtime_input') {
-        const queryText = parsed.text || parsed.data;
-        if (!queryText) return;
+      if (parsed.type === 'text_query') {
+        console.log(`[LOG] Received query: "${parsed.text}"`);
 
-        console.log(`[LOG] User asked: "${queryText}"`);
-        messages.push({ role: 'user', content: queryText });
-
-        if (!activeModelId) {
-          activeModelId = await getAvailableModel();
+        if (!groq) {
+          ws.send(JSON.stringify({ type: 'error', message: 'חסר GROQ_API_KEY בשרת.' }));
+          return;
         }
+
+        messages.push({ role: 'user', content: parsed.text });
 
         const stream = await groq.chat.completions.create({
           messages: messages,
@@ -85,16 +77,23 @@ wss.on('connection', (ws) => {
         }
 
         messages.push({ role: 'assistant', content: fullText });
-        console.log(`[LOG] Response time: ${Date.now() - startTime}ms`);
-        ws.send(JSON.stringify({ type: 'stream_end', fullText }));
+        console.log(`[LOG] Response generated in ${Date.now() - startTime}ms`);
+        ws.send(JSON.stringify({ type: 'stream_end', fullText: fullText }));
       }
     } catch (err) {
-      console.error('[ERROR] Processing error:', err);
-      ws.send(JSON.stringify({ type: 'error', message: 'חלה שגיאה בתקשורת. נסה שוב.' }));
+      console.error('[ERROR] Error handling message:', err.message);
+      ws.send(JSON.stringify({
+        type: 'error',
+        message: 'חלה שגיאה בתקשורת. אנא נסה שוב.'
+      }));
     }
   });
 
-  ws.on('close', () => console.log('[LOG] Client disconnected'));
+  ws.on('close', () => {
+    console.log('[LOG] Client disconnected');
+  });
 });
 
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
