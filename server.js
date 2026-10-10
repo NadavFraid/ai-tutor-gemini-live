@@ -10,13 +10,12 @@ const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3000;
 
-// אתחול בטוח של Groq
 let groq = null;
 if (process.env.GROQ_API_KEY) {
   groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
   console.log('[LOG] Groq SDK Initialized successfully');
 } else {
-  console.error('[WARNING] GROQ_API_KEY is not defined in Environment Variables!');
+  console.error('[WARNING] GROQ_API_KEY is missing!');
 }
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -29,15 +28,15 @@ const SYSTEM_INSTRUCTION = `
 - ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
 `;
 
+// מודלים מעודכנים ופעילים ב-Groq
+const GROQ_MODELS = [
+  'llama-3.3-70b-versatile',
+  'llama3-8b-8192',
+  'mixtral-8x7b-32768'
+];
+
 wss.on('connection', (ws, req) => {
   console.log(`[LOG] New client connected from ${req.socket.remoteAddress}`);
-
-  // שמירה על חיבור פעיל (Ping/Pong) מול Render
-  const pingInterval = setInterval(() => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.ping();
-    }
-  }, 25000);
 
   const messages = [{ role: 'system', content: SYSTEM_INSTRUCTION }];
 
@@ -50,20 +49,37 @@ wss.on('connection', (ws, req) => {
         if (!groq) {
           ws.send(JSON.stringify({ 
             type: 'error', 
-            message: 'מפתח GROQ_API_KEY חסר בשרת. הגדר אותו ב-Environment Variables ב-Render.' 
+            message: 'חסר GROQ_API_KEY בשרת.' 
           }));
           return;
         }
 
         messages.push({ role: 'user', content: parsed.text });
 
-        const stream = await groq.chat.completions.create({
-          messages: messages,
-          model: 'llama-3.1-8b-instant',
-          temperature: 0.6,
-          max_tokens: 300,
-          stream: true,
-        });
+        let stream = null;
+        let lastError = null;
+
+        // ניסיון התחברות למודלים פעילים ברשימה
+        for (const modelName of GROQ_MODELS) {
+          try {
+            stream = await groq.chat.completions.create({
+              messages: messages,
+              model: modelName,
+              temperature: 0.6,
+              max_tokens: 300,
+              stream: true,
+            });
+            console.log(`[LOG] Using active Groq model: ${modelName}`);
+            break;
+          } catch (err) {
+            console.warn(`[WARN] Model ${modelName} failed, trying next...`);
+            lastError = err;
+          }
+        }
+
+        if (!stream) {
+          throw lastError || new Error('No Groq models available');
+        }
 
         let fullText = '';
         for await (const chunk of stream) {
@@ -84,7 +100,6 @@ wss.on('connection', (ws, req) => {
   });
 
   ws.on('close', () => {
-    clearInterval(pingInterval);
     console.log('[LOG] Client disconnected');
   });
 });
