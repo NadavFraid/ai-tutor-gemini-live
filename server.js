@@ -40,7 +40,7 @@ wss.on('connection', (ws) => {
       if (message.type === 'text_query') {
         // שימוש בדגם gemini-2.0-flash העדכני
         const model = genAI.getGenerativeModel({
-          model: 'gemini-2.0-flash',
+          model: 'gemini-3.8-flash',
           systemInstruction: SYSTEM_INSTRUCTION
         });
 
