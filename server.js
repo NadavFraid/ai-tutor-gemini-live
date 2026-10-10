@@ -56,12 +56,9 @@ wss.on('connection', (ws) => {
     const startTime = Date.now();
     try {
       const parsed = JSON.parse(data);
-      if (parsed.type === 'text_query' || parsed.type === 'realtime_input') {
-        const queryText = parsed.text || parsed.data;
-        if (!queryText) return;
-
-        console.log(`[LOG] User asked: "${queryText}"`);
-        messages.push({ role: 'user', content: queryText });
+      if (parsed.type === 'text_query') {
+        console.log(`[LOG] User asked: "${parsed.text}"`);
+        messages.push({ role: 'user', content: parsed.text });
 
         if (!activeModelId) {
           activeModelId = await getAvailableModel();
