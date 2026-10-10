@@ -8,20 +8,17 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between p-4 max-w-md mx-auto">
   
-  <!-- כותרת -->
   <header class="text-center my-4">
     <h1 class="text-2xl font-bold text-indigo-600">🎓 אריאל - המורה הפרטי שלך</h1>
     <p class="text-sm text-slate-500 mt-1">פיזיקה • מתמטיקה • אנגלית (כיתה ח')</p>
   </header>
 
-  <!-- צ'אט / תצוגת שיחה -->
   <main id="chat-box" class="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-slate-200 overflow-y-auto my-2 space-y-3 min-h-[350px] max-h-[500px]">
     <div class="bg-indigo-50 p-3 rounded-xl text-indigo-900 text-sm">
       שלום! אני אריאל. במה נעבוד היום? אפשר לשאול אותי שאלה בפיזיקה, מתמטיקה או אנגלית!
     </div>
   </main>
 
-  <!-- אזור קלט -->
   <footer class="mt-2">
     <form id="input-form" class="flex gap-2">
       <input type="text" id="user-input" placeholder="שאל שאלה..." class="flex-1 border border-slate-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
@@ -37,15 +34,26 @@
     const input = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
 
+    let currentBotMsgElement = null;
+
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      if (data.type === 'text_response') {
-        appendMessage('אריאל', data.text, 'bg-indigo-50 text-indigo-900', 'rtl');
+
+      if (data.type === 'text_chunk') {
+        if (!currentBotMsgElement) {
+          currentBotMsgElement = createMessageElement('אריאל', '', 'bg-indigo-50 text-indigo-900');
+        }
+        currentBotMsgElement.innerHTML += data.text.replace(/\n/g, '<br>');
+        chatBox.scrollTop = chatBox.scrollHeight;
+      } else if (data.type === 'stream_end') {
+        currentBotMsgElement = null;
+        sendBtn.disabled = false;
+        sendBtn.innerText = 'שלח';
       } else if (data.type === 'error') {
-        appendMessage('מערכת', data.message, 'bg-red-50 text-red-800', 'rtl');
+        createMessageElement('מערכת', data.message, 'bg-red-50 text-red-800');
+        sendBtn.disabled = false;
+        sendBtn.innerText = 'שלח';
       }
-      sendBtn.disabled = false;
-      sendBtn.innerText = 'שלח';
     };
 
     form.addEventListener('submit', (e) => {
@@ -53,25 +61,21 @@
       const text = input.value.trim();
       if (!text) return;
 
-      appendMessage('אתה', text, 'bg-slate-100 text-slate-800', 'rtl');
+      createMessageElement('אתה', text, 'bg-slate-100 text-slate-800');
       ws.send(JSON.stringify({ type: 'text_query', text }));
       
       input.value = '';
       sendBtn.disabled = true;
-      sendBtn.innerText = 'חוקר...';
+      sendBtn.innerText = 'עונה...';
     });
 
-    function appendMessage(sender, text, bgClass, dir = 'rtl') {
+    function createMessageElement(sender, text, bgClass) {
       const msgDiv = document.createElement('div');
       msgDiv.className = `p-3 rounded-xl text-sm ${bgClass}`;
-      msgDiv.setAttribute('dir', dir);
-      
-      // המרת שורות חדשות לפתרון תצוגה נקי
-      const formattedText = text.replace(/\n/g, '<br>');
-      msgDiv.innerHTML = `<strong>${sender}:</strong> ${formattedText}`;
-      
+      msgDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
       chatBox.appendChild(msgDiv);
       chatBox.scrollTop = chatBox.scrollHeight;
+      return msgDiv;
     }
   </script>
 </body>
