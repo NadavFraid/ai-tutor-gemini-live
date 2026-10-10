@@ -25,66 +25,54 @@ const SYSTEM_INSTRUCTION = `
 תפקידך לסייע במקצועות: מתמטיקה, פיזיקה, אנגלית ומדעים.
 - אל תיתן את התשובות הסופיות מייד, אלא הדרך אותו צעד אחר צעד (שיטה סוקרטית).
 - דבר בעברית ברורה, נעימה ובגובה העיניים.
-- ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
+- ענה בקצרה ובמהירות (1-2 משפטים בלבד בכל תגובה).
 `;
-
-// פונקציית עזר להזרמת הודעות בתוך סשן צ'אט עם מנגנון Retry לשגיאות 500 זמניות
-async function sendMessageWithRetry(chatSession, text, ws, retries = 2) {
-  try {
-    const resultStream = await chatSession.sendMessageStream(text);
-    for await (const chunk of resultStream.stream) {
-      const chunkText = chunk.text();
-      ws.send(JSON.stringify({
-        type: 'text_chunk',
-        text: chunkText
-      }));
-    }
-    ws.send(JSON.stringify({ type: 'stream_end' }));
-  } catch (err) {
-    if (retries > 0 && err.message && err.message.includes('500')) {
-      console.log(`Temporary 500 error from Google. Retrying... (${retries} retries left)`);
-      await new Promise(res => setTimeout(res, 1000));
-      return sendMessageWithRetry(chatSession, text, ws, retries - 1);
-    }
-    throw err;
-  }
-}
 
 wss.on('connection', (ws) => {
   console.log('Client connected via WebSocket');
 
-  // יצירת סשן צ'אט עם הדגם הנתמך
-  let chatSession = null;
-  try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-3.8-flash',
-      systemInstruction: SYSTEM_INSTRUCTION
-    });
-    chatSession = model.startChat();
-  } catch (err) {
-    console.error('Error initializing chat model:', err);
-  }
+  // שמירת היסטוריית השיחה באופן מקומי לכל התחברות
+  const history = [];
 
   ws.on('message', async (data) => {
     try {
       const message = JSON.parse(data);
 
       if (message.type === 'text_query') {
-        if (!chatSession) {
-          const model = genAI.getGenerativeModel({
-            model: 'gemini-3.8-flash',
-            systemInstruction: SYSTEM_INSTRUCTION
-          });
-          chatSession = model.startChat();
+        const model = genAI.getGenerativeModel({
+          model: 'gemini-3.8-flash',
+          systemInstruction: SYSTEM_INSTRUCTION
+        });
+
+        // הוספת הודעת המשתמש להיסטוריה
+        history.push({ role: 'user', parts: [{ text: message.text }] });
+
+        // שליחת כל היסטוריית השיחה כתוכן לבקשה
+        const resultStream = await model.generateContentStream({
+          contents: history
+        });
+
+        let fullModelResponse = '';
+
+        for await (const chunk of resultStream.stream) {
+          const chunkText = chunk.text();
+          fullModelResponse += chunkText;
+          ws.send(JSON.stringify({
+            type: 'text_chunk',
+            text: chunkText
+          }));
         }
 
-        await sendMessageWithRetry(chatSession, message.text, ws);
+        // שמירת תשובת המודל בהיסטוריה
+        history.push({ role: 'model', parts: [{ text: fullModelResponse }] });
+
+        ws.send(JSON.stringify({ type: 'stream_end' }));
       }
     } catch (err) {
-      console.error('Error in streaming response:', err);
+      console.error('Error during streaming:', err);
       ws.send(JSON.stringify({
         type: 'error',
-        message: `שגיאה: ${err.message || 'אנא נסה לשלוח את ההודעה שוב.'}`
+        message: `שגיאה: ${err.message || 'חל עיכוב בתגובה, נסה שוב'}`
       }));
     }
   });
