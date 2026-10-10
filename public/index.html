@@ -1,1 +1,68 @@
 
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>מורה פרטי אישי - אריאל</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between p-4 max-w-md mx-auto">
+  
+  <!-- כותרת -->
+  <header class="text-center my-4">
+    <h1 class="text-2xl font-bold text-indigo-600">🎓 אריאל - המורה הפרטי שלך</h1>
+    <p class="text-sm text-slate-500 mt-1">פיזיקה • מתמטיקה • אנגלית (כיתה ח')</p>
+  </header>
+
+  <!-- צ'אט / תצוגת שיחה -->
+  <main id="chat-box" class="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-slate-200 overflow-y-auto my-2 space-y-3 min-h-[300px]">
+    <div class="bg-indigo-50 p-3 rounded-xl text-indigo-900 text-sm">
+      שלום! אני אריאל. במה נעבוד היום? אפשר לשאול אותי שאלה בפיזיקה, מתמטיקה או אנגלית!
+    </div>
+  </main>
+
+  <!-- אזור קלט -->
+  <footer class="mt-2">
+    <form id="input-form" class="flex gap-2">
+      <input type="text" id="user-input" placeholder="שאל שאלה..." class="flex-1 border border-slate-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+      <button type="submit" class="bg-indigo-600 text-white font-medium px-5 py-3 rounded-xl hover:bg-indigo-700 transition">שלח</button>
+    </form>
+  </footer>
+
+  <script>
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${location.host}`);
+    const chatBox = document.getElementById('chat-box');
+    const form = document.getElementById('input-form');
+    const input = document.getElementById('user-input');
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'text_response') {
+        appendMessage('אריאל', data.text, 'bg-indigo-50 text-indigo-900');
+      } else if (data.type === 'error') {
+        appendMessage('מערכת', data.message, 'bg-red-50 text-red-800');
+      }
+    };
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+
+      appendMessage('אתה', text, 'bg-slate-100 text-slate-800 text-left dir-ltr');
+      ws.send(JSON.stringify({ type: 'text_query', text }));
+      input.value = '';
+    });
+
+    function appendMessage(sender, text, bgClass) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `p-3 rounded-xl text-sm ${bgClass}`;
+      msgDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
+      chatBox.appendChild(msgDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+  </script>
+</body>
+</html>
