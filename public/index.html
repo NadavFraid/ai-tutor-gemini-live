@@ -3,79 +3,218 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>מורה פרטי אישי - אריאל</title>
+  <title>אריאל - שיחת וידאו עם מורה פרטי</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .mirror-video {
+      transform: scaleX(-1);
+    }
+  </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between p-4 max-w-md mx-auto">
-  
-  <header class="text-center my-4">
-    <h1 class="text-2xl font-bold text-indigo-600">🎓 אריאל - המורה הפרטי שלך</h1>
-    <p class="text-sm text-slate-500 mt-1">פיזיקה • מתמטיקה • אנגלית (כיתה ח')</p>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col justify-between p-4 max-w-lg mx-auto">
+
+  <!-- כותרת השיחה -->
+  <header class="flex justify-between items-center py-2 px-1 border-b border-slate-800">
+    <div>
+      <h1 class="text-lg font-bold text-indigo-400">🎓 שיחת וידאו עם אריאל</h1>
+      <p class="text-xs text-slate-400">פיזיקה • מתמטיקה • אנגלית (כיתה ח')</p>
+    </div>
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+      <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+      מחובר
+    </span>
   </header>
 
-  <main id="chat-box" class="flex-1 bg-white rounded-2xl p-4 shadow-sm border border-slate-200 overflow-y-auto my-2 space-y-3 min-h-[350px] max-h-[500px]">
-    <div class="bg-indigo-50 p-3 rounded-xl text-indigo-900 text-sm">
-      שלום! אני אריאל. במה נעבוד היום? אפשר לשאול אותי שאלה בפיזיקה, מתמטיקה או אנגלית!
+  <!-- אזור הוידאו הדו-כיווני (Grid Layout) -->
+  <main class="flex-1 my-4 flex flex-col gap-3 justify-center relative">
+    
+    <!-- חלון 1: המורה אריאל (AI Avatar / Audio Visualizer) -->
+    <div class="relative bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 aspect-video flex flex-col items-center justify-center shadow-2xl">
+      <!-- אווטאר דיגיטלי דינמי -->
+      <div id="avatar-container" class="relative flex flex-col items-center">
+        <div id="avatar-pulse" class="w-28 h-28 rounded-full bg-indigo-600/30 flex items-center justify-center transition-all duration-300">
+          <div class="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-4xl shadow-inner border-2 border-indigo-400/50">
+            👨‍🏫
+          </div>
+        </div>
+        <span class="mt-3 text-sm font-semibold text-slate-200">אריאל - מורה פרטי</span>
+        <span id="teacher-status" class="text-xs text-slate-400 mt-0.5">מקשיב...</span>
+      </div>
+
+      <!-- כתוביות חיות (Live Captions) -->
+      <div class="absolute bottom-2 inset-x-2 bg-slate-950/80 backdrop-blur-md p-2 rounded-xl text-center text-xs text-indigo-200 min-h-[36px] flex items-center justify-center border border-slate-800" id="caption-box">
+        לחץ על כפתור התחלת השיחה כדי להתחיל
+      </div>
     </div>
+
+    <!-- חלון 2: הילד / התלמיד (Local Camera Stream) -->
+    <div class="relative bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 aspect-video flex items-center justify-center shadow-lg">
+      <video id="user-video" autoplay playsinline muted class="w-full h-full object-cover mirror-video hidden"></video>
+      <div id="cam-placeholder" class="flex flex-col items-center text-slate-500">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+        <span class="text-xs">המצלמה שלך כבויה</span>
+      </div>
+      <span class="absolute bottom-2 right-2 bg-slate-900/80 px-2 py-0.5 rounded text-[10px] text-slate-300">אתה (תלמיד)</span>
+    </div>
+
   </main>
 
-  <footer class="mt-2">
-    <form id="input-form" class="flex gap-2">
-      <input type="text" id="user-input" placeholder="שאל שאלה..." class="flex-1 border border-slate-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
-      <button type="submit" id="send-btn" class="bg-indigo-600 text-white font-medium px-5 py-3 rounded-xl hover:bg-indigo-700 transition">שלח</button>
-    </form>
+  <!-- בקרות שיחה (Call Action Bar) -->
+  <footer class="bg-slate-800/80 backdrop-blur-md p-3 rounded-2xl border border-slate-700 flex items-center justify-around">
+    
+    <!-- כפתור מצלמה -->
+    <button id="toggle-cam-btn" class="p-3 bg-slate-700 hover:bg-slate-600 text-white rounded-full transition shadow">
+      <svg id="cam-icon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+      </svg>
+    </button>
+
+    <!-- כפתור ראשי: התחלת / עצירת שיחה קולית -->
+    <button id="mic-btn" class="p-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full transition shadow-lg flex items-center justify-center w-16 h-16">
+      <svg id="mic-icon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z" />
+      </svg>
+    </button>
+
+    <!-- כפתור ניקוי שיחה -->
+    <button id="clear-btn" class="p-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-full transition shadow">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+    </button>
+
   </footer>
 
   <script>
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${protocol}//${location.host}`);
-    const chatBox = document.getElementById('chat-box');
-    const form = document.getElementById('input-form');
-    const input = document.getElementById('user-input');
-    const sendBtn = document.getElementById('send-btn');
+    
+    const userVideo = document.getElementById('user-video');
+    const camPlaceholder = document.getElementById('cam-placeholder');
+    const toggleCamBtn = document.getElementById('toggle-cam-btn');
+    const micBtn = document.getElementById('mic-btn');
+    const captionBox = document.getElementById('caption-box');
+    const teacherStatus = document.getElementById('teacher-status');
+    const avatarPulse = document.getElementById('avatar-pulse');
 
-    let currentBotMsgElement = null;
+    let localStream = null;
+    let isCamOn = false;
+    let fullResponseText = '';
 
+    // 1. הפעלת/כיבוי מצלמת התלמיד (Local Video)
+    toggleCamBtn.addEventListener('click', async () => {
+      if (!isCamOn) {
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          userVideo.srcObject = localStream;
+          userVideo.classList.remove('hidden');
+          camPlaceholder.classList.add('hidden');
+          toggleCamBtn.classList.replace('bg-slate-700', 'bg-emerald-600');
+          isCamOn = true;
+        } catch (err) {
+          alert('לא ניתן לגשת למצלמה. אנוודא שהרשאות המצלמה מאושרות בדפדפן.');
+        }
+      } else {
+        if (localStream) {
+          localStream.getTracks().forEach(track => track.stop());
+        }
+        userVideo.classList.add('hidden');
+        camPlaceholder.classList.remove('hidden');
+        toggleCamBtn.classList.replace('bg-emerald-600', 'bg-slate-700');
+        isCamOn = false;
+      }
+    });
+
+    // 2. זיהוי דיבור (Speech-to-Text)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let isListening = false;
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.lang = 'he-IL';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        isListening = true;
+        micBtn.classList.replace('bg-indigo-600', 'bg-red-500');
+        micBtn.classList.add('animate-pulse');
+        teacherStatus.innerText = 'מקשיב לך...';
+        captionBox.innerText = 'דבר עכשיו...';
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          captionBox.innerText = `אתה: "${transcript}"`;
+          ws.send(JSON.stringify({ type: 'text_query', text: transcript }));
+          teacherStatus.innerText = 'אריאל חושב...';
+        }
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        micBtn.classList.replace('bg-red-500', 'bg-indigo-600');
+        micBtn.classList.remove('animate-pulse');
+      };
+    }
+
+    micBtn.addEventListener('click', () => {
+      if (!recognition) {
+        alert('הדפדפן אינו תומך בזיהוי קולי');
+        return;
+      }
+      if (isListening) {
+        recognition.stop();
+      } else {
+        window.speechSynthesis.cancel();
+        recognition.start();
+      }
+    });
+
+    // 3. קבלת התשובה מ-Groq והנפשת המורה
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
       if (data.type === 'text_chunk') {
-        if (!currentBotMsgElement) {
-          currentBotMsgElement = createMessageElement('אריאל', '', 'bg-indigo-50 text-indigo-900');
+        if (!fullResponseText) {
+          fullResponseText = '';
+          avatarPulse.classList.add('scale-110', 'ring-4', 'ring-indigo-500/50');
+          teacherStatus.innerText = 'אריאל מדבר...';
         }
-        currentBotMsgElement.innerHTML += data.text.replace(/\n/g, '<br>');
-        chatBox.scrollTop = chatBox.scrollHeight;
+        fullResponseText += data.text;
+        captionBox.innerText = `אריאל: "${fullResponseText}"`;
       } else if (data.type === 'stream_end') {
-        currentBotMsgElement = null;
-        sendBtn.disabled = false;
-        sendBtn.innerText = 'שלח';
+        speakText(fullResponseText);
+        fullResponseText = '';
       } else if (data.type === 'error') {
-        createMessageElement('מערכת', data.message, 'bg-red-50 text-red-800');
-        sendBtn.disabled = false;
-        sendBtn.innerText = 'שלח';
+        captionBox.innerText = data.message;
+        teacherStatus.innerText = 'שגיאה';
       }
     };
 
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const text = input.value.trim();
-      if (!text) return;
+    // 4. הקראה קולית והנפשת דמות המורה
+    function speakText(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'he-IL';
+        
+        utterance.onstart = () => {
+          avatarPulse.classList.add('scale-110', 'ring-4', 'ring-indigo-500/50');
+          teacherStatus.innerText = 'אריאל מדבר...';
+        };
 
-      createMessageElement('אתה', text, 'bg-slate-100 text-slate-800');
-      ws.send(JSON.stringify({ type: 'text_query', text }));
-      
-      input.value = '';
-      sendBtn.disabled = true;
-      sendBtn.innerText = 'עונה...';
-    });
+        utterance.onend = () => {
+          avatarPulse.classList.remove('scale-110', 'ring-4', 'ring-indigo-500/50');
+          teacherStatus.innerText = 'מקשיב...';
+        };
 
-    function createMessageElement(sender, text, bgClass) {
-      const msgDiv = document.createElement('div');
-      msgDiv.className = `p-3 rounded-xl text-sm ${bgClass}`;
-      msgDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
-      chatBox.appendChild(msgDiv);
-      chatBox.scrollTop = chatBox.scrollHeight;
-      return msgDiv;
+        window.speechSynthesis.speak(utterance);
+      }
     }
   </script>
 </body>
