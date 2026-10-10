@@ -11,6 +11,10 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3000;
 const apiKey = process.env.GEMINI_API_KEY;
 
+if (!apiKey) {
+  console.error("ERROR: GEMINI_API_KEY is not defined in environment variables!");
+}
+
 const genAI = new GoogleGenerativeAI(apiKey || '');
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -21,27 +25,40 @@ const SYSTEM_INSTRUCTION = `
 תפקידך לסייע במקצועות: מתמטיקה, פיזיקה, אנגלית ומדעים.
 - אל תיתן את התשובות הסופיות מייד, אלא הדרך אותו צעד אחר צעד (שיטה סוקרטית).
 - דבר בעברית ברורה, נעימה ובגובה העיניים.
-- ענה בקצרה ובמהירות (משפט אחד או שניים בלבד בכל פעם).
+- ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
 `;
 
 wss.on('connection', (ws) => {
   console.log('Client connected via WebSocket');
 
-  // הגדרת דגם מהיר ופתיחת סשן צ'אט רציף
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    systemInstruction: SYSTEM_INSTRUCTION
-  });
+  // יצירת מודל יציב ומהיר עם זיכרון צ'אט
+  let chatSession = null;
 
-  const chat = model.startChat();
+  try {
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      systemInstruction: SYSTEM_INSTRUCTION
+    });
+    chatSession = model.startChat();
+  } catch (err) {
+    console.error('Error initializing model:', err);
+  }
 
   ws.on('message', async (data) => {
     try {
       const message = JSON.parse(data);
 
       if (message.type === 'text_query') {
-        // הזרמת תשובה מתוך סשן הצ'אט במהירות מרבית
-        const resultStream = await chat.sendMessageStream(message.text);
+        if (!chatSession) {
+          const model = genAI.getGenerativeModel({
+            model: 'gemini-2.5-flash',
+            systemInstruction: SYSTEM_INSTRUCTION
+          });
+          chatSession = model.startChat();
+        }
+
+        // הזרמת התשובה בצורה מהירה דרך Chat Session
+        const resultStream = await chatSession.sendMessageStream(message.text);
 
         for await (const chunk of resultStream.stream) {
           const chunkText = chunk.text();
@@ -54,10 +71,10 @@ wss.on('connection', (ws) => {
         ws.send(JSON.stringify({ type: 'stream_end' }));
       }
     } catch (err) {
-      console.error('Error in streaming:', err);
+      console.error('Error during streaming:', err);
       ws.send(JSON.stringify({
         type: 'error',
-        message: 'חלה שגיאה קטנה, נסה לשלוח שוב.'
+        message: `שגיאה: ${err.message || 'אנא נסה לשלוח שוב'}`
       }));
     }
   });
