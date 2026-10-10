@@ -28,11 +28,11 @@ const SYSTEM_INSTRUCTION = `
 - ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
 `;
 
-// מודלים יציבים בלבד לשיחה (ללא מודלי GPT-OSS שדורשים Tools)
-const STABLE_CHAT_MODELS = [
-  'llama-3.3-70b-versatile',
+// מודלים פעילים ומאומתים ב-Groq
+const STABLE_MODELS = [
   'llama-3.1-8b-instant',
-  'llama3-70b-8192'
+  'llama-3.3-70b-specdec',
+  'llama3-8b-8192'
 ];
 
 async function getActiveModel() {
@@ -40,16 +40,16 @@ async function getActiveModel() {
     const list = await groq.models.list();
     if (list && list.data) {
       const availableIds = list.data.map(m => m.id);
-      for (const candidate of STABLE_CHAT_MODELS) {
+      for (const candidate of STABLE_MODELS) {
         if (availableIds.includes(candidate)) {
           return candidate;
         }
       }
     }
   } catch (err) {
-    console.error('[WARN] Failed to fetch model list:', err.message);
+    console.error('[WARN] Failed fetching model list:', err.message);
   }
-  return 'llama-3.3-70b-versatile';
+  return 'llama-3.1-8b-instant';
 }
 
 wss.on('connection', (ws, req) => {
@@ -72,13 +72,13 @@ wss.on('connection', (ws, req) => {
         messages.push({ role: 'user', content: parsed.text });
 
         const modelToUse = await getActiveModel();
-        console.log(`[LOG] Querying Groq using active chat model: ${modelToUse}`);
+        console.log(`[LOG] Querying Groq using model: ${modelToUse}`);
 
         const stream = await groq.chat.completions.create({
           messages: messages,
           model: modelToUse,
           temperature: 0.6,
-          max_tokens: 300,
+          max_tokens: 250,
           stream: true,
         });
 
@@ -92,7 +92,7 @@ wss.on('connection', (ws, req) => {
         }
 
         messages.push({ role: 'assistant', content: fullText });
-        console.log(`[LOG] Response sent successfully (${fullText.length} chars)`);
+        console.log(`[LOG] Response sent (${fullText.length} chars)`);
         ws.send(JSON.stringify({ type: 'stream_end', fullText: fullText }));
       }
     } catch (err) {
