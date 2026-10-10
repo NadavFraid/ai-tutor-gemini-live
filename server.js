@@ -2,14 +2,13 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const WebSocket = require('ws');
-const Groq = require('groq-sdk');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3000;
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const API_KEY = process.env.GEMINI_API_KEY;
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -22,93 +21,125 @@ const SYSTEM_INSTRUCTION = `
 - ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
 `;
 
-// רשימת דגמי Chat נתמכים ב-Groq
-const VALID_GROQ_CHAT_MODELS = [
-  'openai/gpt-oss-20b',
-  'llama-3.1-8b-instant',
-  'openai/gpt-oss-120b',
-  'qwen/qwen3-32b'
-];
+wss.on('connection', (clientWs) => {
+  console.log('[LOG] Client connected to local WebSocket');
 
-let activeModelId = null;
+  if (!API_KEY) {
+    console.error('[ERROR] GEMINI_API_KEY is missing');
+    clientWs.send(JSON.stringify({ type: 'error', message: 'חסר GEMINI_API_KEY בשרת' }));
+    return;
+  }
 
-async function getAvailableModel() {
-  try {
-    const list = await groq.models.list();
-    if (list && list.data) {
-      const availableIds = list.data.map(m => m.id);
-      for (const candidate of VALID_GROQ_CHAT_MODELS) {
-        if (availableIds.includes(candidate)) {
-          console.log(`[LOG] Selected active Groq model: ${candidate}`);
-          return candidate;
+  // התחברות ל-Gemini Multimodal Live API WebSocket
+  const geminiWsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
+  const geminiWs = new WebSocket(geminiWsUrl);
+
+  geminiWs.on('open', () => {
+    console.log('[LOG] Connected to Gemini Multimodal Live API');
+
+    // שליחת הודעת הגדרה ראשונית (Setup Message)
+    const setupMsg = {
+      setup: {
+        model: 'models/gemini-2.0-flash-exp',
+        generationConfig: {
+          responseModalities: ['AUDIO', 'TEXT'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: 'Puck' // קול זכר טבעי וברור
+              }
+            }
+          }
+        },
+        systemInstruction: {
+          parts: [{ text: SYSTEM_INSTRUCTION }]
         }
       }
-    }
-  } catch (err) {
-    console.error('[ERROR] Failed fetching models list:', err.message);
-  }
-  return 'openai/gpt-oss-20b';
-}
+    };
+    geminiWs.send(JSON.stringify(setupMsg));
+  });
 
-wss.on('connection', (ws) => {
-  console.log('[LOG] Client connected');
-  
-  const messages = [
-    { role: 'system', content: SYSTEM_INSTRUCTION }
-  ];
-
-  ws.on('message', async (data) => {
-    const startTime = Date.now();
+  // העברת הודעות מ-Gemini אל הלקוח
+  geminiWs.on('message', (data) => {
     try {
-      const parsed = JSON.parse(data);
-      if (parsed.type === 'text_query') {
-        console.log(`[LOG] Query: "${parsed.text}"`);
-
-        messages.push({ role: 'user', content: parsed.text });
-
-        if (!activeModelId) {
-          activeModelId = await getAvailableModel();
-        }
-
-        const stream = await groq.chat.completions.create({
-          messages: messages,
-          model: activeModelId,
-          temperature: 0.6,
-          max_tokens: 300,
-          stream: true,
-        });
-
-        let fullText = '';
-        let firstChunk = true;
-
-        for await (const chunk of stream) {
-          const content = chunk.choices[0]?.delta?.content || '';
-          if (content) {
-            if (firstChunk) {
-              console.log(`[LOG] First chunk in ${Date.now() - startTime}ms via ${activeModelId}`);
-              firstChunk = false;
-            }
-            fullText += content;
-            ws.send(JSON.stringify({ type: 'text_chunk', text: content }));
+      const response = JSON.parse(data.toString());
+      
+      // טיפול בתשובת אודיו/טקסט מ-Gemini
+      if (response.serverContent && response.serverContent.modelTurn) {
+        const parts = response.serverContent.modelTurn.parts || [];
+        for (const part of parts) {
+          if (part.inlineData && part.inlineData.mimeType.startsWith('audio/pcm')) {
+            clientWs.send(JSON.stringify({
+              type: 'audio_chunk',
+              data: part.inlineData.data
+            }));
+          }
+          if (part.text) {
+            clientWs.send(JSON.stringify({
+              type: 'text_chunk',
+              text: part.text
+            }));
           }
         }
-
-        messages.push({ role: 'assistant', content: fullText });
-        console.log(`[LOG] Finished in ${Date.now() - startTime}ms`);
-        ws.send(JSON.stringify({ type: 'stream_end' }));
       }
-    } catch (err) {
-      console.error('[ERROR] Stream processing failed:', err);
-      activeModelId = null;
-      ws.send(JSON.stringify({
-        type: 'error',
-        message: 'חלה שגיאה בתקשורת. אנא נסה לשלוח שוב.'
-      }));
+
+      if (response.serverContent && response.serverContent.turnComplete) {
+        clientWs.send(JSON.stringify({ type: 'turn_complete' }));
+      }
+    } catch (e) {
+      console.error('[ERROR] Parsing Gemini response:', e);
     }
   });
 
-  ws.on('close', () => {
+  // העברת נתונים מהלקוח (מיקרופון/מצלמה) אל Gemini
+  clientWs.on('message', (message) => {
+    try {
+      const parsed = JSON.parse(message);
+
+      if (geminiWs.readyState === WebSocket.OPEN) {
+        if (parsed.type === 'realtime_input') {
+          // העברת פריימים של אודיו/וידאו בלייב ל-Gemini
+          const realtimeMsg = {
+            realtimeInput: {
+              mediaChunks: [
+                {
+                  mimeType: parsed.mimeType,
+                  data: parsed.data
+                }
+              ]
+            }
+          };
+          geminiWs.send(JSON.stringify(realtimeMsg));
+        } else if (parsed.type === 'text_input') {
+          const clientContentMsg = {
+            clientContent: {
+              turns: [
+                {
+                  role: 'user',
+                  parts: [{ text: parsed.text }]
+                }
+              ],
+              turnComplete: true
+            }
+          };
+          geminiWs.send(JSON.stringify(clientContentMsg));
+        }
+      }
+    } catch (e) {
+      console.error('[ERROR] Handling client message:', e);
+    }
+  });
+
+  geminiWs.on('error', (err) => {
+    console.error('[ERROR] Gemini WS Error:', err.message);
+    clientWs.send(JSON.stringify({ type: 'error', message: 'תקלה בתקשורת מול Gemini Live' }));
+  });
+
+  clientWs.on('close', () => {
     console.log('[LOG] Client disconnected');
+    if (geminiWs.readyState === WebSocket.OPEN) {
+      geminiWs.close();
+    }
   });
 });
 
