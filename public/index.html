@@ -32,7 +32,7 @@
       </span>
     </div>
 
-    <!-- גלריית מורים לבחירה -->
+    <!-- גלריית מורים -->
     <div class="flex gap-2 overflow-x-auto py-1 no-scrollbar">
       <button id="t-btn-0" type="button" class="teacher-btn border-2 border-indigo-500 rounded-xl p-1 bg-slate-800 flex items-center gap-2 min-w-[100px] transition cursor-pointer">
         <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" class="w-8 h-8 rounded-full object-cover pointer-events-none">
@@ -60,7 +60,6 @@
     <div class="relative bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 aspect-video flex flex-col items-center justify-center shadow-2xl">
       <img id="teacher-img" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80" alt="המורה" class="w-full h-full object-cover transition-transform duration-200">
       
-      <!-- אינדיקטור דיבור מונפש -->
       <div id="speaking-overlay" class="absolute top-3 right-3 bg-indigo-600/95 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium text-white flex items-center gap-2 hidden shadow-lg border border-indigo-400/40">
         <span class="flex h-2.5 w-2.5 relative">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-300 opacity-75"></span>
@@ -73,13 +72,12 @@
         👨‍🏫 אריאל (מורה פרטי)
       </span>
 
-      <!-- כתוביות חיות -->
       <div id="captions" class="absolute bottom-2 inset-x-2 bg-slate-950/85 backdrop-blur-md p-2 rounded-xl text-center text-xs text-indigo-200 min-h-[36px] flex items-center justify-center border border-slate-800">
         לחץ על כפתור המיקרופון או המצלמה כדי להתחיל
       </div>
     </div>
 
-    <!-- חלון 2: הילד / התלמיד -->
+    <!-- חלון 2: התלמיד -->
     <div class="relative bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 aspect-video flex items-center justify-center shadow-lg">
       <video id="user-video" autoplay playsinline muted class="w-full h-full object-cover mirror hidden"></video>
       <div id="cam-off-msg" class="flex flex-col items-center text-slate-500 p-4 text-center">
@@ -95,21 +93,17 @@
 
   <!-- בקרות שיחה -->
   <footer class="bg-slate-800/80 backdrop-blur-md p-3 rounded-2xl border border-slate-700 flex items-center justify-around">
-    
-    <!-- כפתור מצלמה -->
     <button id="cam-btn" type="button" class="p-3 bg-slate-700 hover:bg-slate-600 active:scale-95 text-white rounded-full transition shadow cursor-pointer">
       <svg class="h-6 w-6 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
       </svg>
     </button>
 
-    <!-- כפתור מיקרופון -->
     <button id="mic-btn" type="button" class="p-4 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-full transition shadow-lg w-16 h-16 flex items-center justify-center cursor-pointer">
       <svg class="h-8 w-8 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z" />
       </svg>
     </button>
-
   </footer>
 
   <script>
@@ -174,7 +168,6 @@
         }
       });
 
-      // הפעלת מצלמה מקומית בטלפון
       camBtn.addEventListener('click', function() {
         if (!isCamOn) {
           navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
@@ -206,7 +199,6 @@
         isCamOn = false;
       }
 
-      // מיקרופון
       var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       var recognition = null;
 
