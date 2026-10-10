@@ -1,9 +1,8 @@
-
 const express = require('express');
 const http = require('http');
 const path = require('path');
 const WebSocket = require('ws');
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 const server = http.createServer(app);
@@ -16,7 +15,7 @@ if (!apiKey) {
   console.error("ERROR: GEMINI_API_KEY is not defined in environment variables!");
 }
 
-const ai = new GoogleGenAI({ apiKey });
+const genAI = new GoogleGenerativeAI(apiKey);
 
 // הגשת קבצים סטטיים מתיקיית public
 app.use(express.static(path.join(__dirname, 'public')));
@@ -34,24 +33,22 @@ const SYSTEM_INSTRUCTION = `
 wss.on('connection', (ws) => {
   console.log('Client connected via WebSocket');
 
-  // טיפול בהודעות מהדפדפן
   ws.on('message', async (data) => {
     try {
       const message = JSON.parse(data);
 
       if (message.type === 'text_query') {
-        // שליחת שאילתת טקסט ל-Gemini
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: message.text,
-          config: {
-            systemInstruction: SYSTEM_INSTRUCTION
-          }
+        const model = genAI.getGenerativeModel({
+          model: 'gemini-1.5-flash',
+          systemInstruction: SYSTEM_INSTRUCTION
         });
+
+        const result = await model.generateContent(message.text);
+        const responseText = result.response.text();
 
         ws.send(JSON.stringify({
           type: 'text_response',
-          text: response.text
+          text: responseText
         }));
       }
     } catch (err) {
