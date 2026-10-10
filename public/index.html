@@ -10,9 +10,9 @@
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     @keyframes pulse-ring {
-      0% { transform: scale(0.95); opacity: 0.8; }
-      50% { transform: scale(1.05); opacity: 1; }
-      100% { transform: scale(0.95); opacity: 0.8; }
+      0% { transform: scale(0.98); opacity: 0.8; }
+      50% { transform: scale(1.04); opacity: 1; }
+      100% { transform: scale(0.98); opacity: 0.8; }
     }
     .speaking-anim { animation: pulse-ring 0.8s infinite ease-in-out; }
   </style>
@@ -82,7 +82,6 @@
     <!-- חלון 2: הילד / התלמיד -->
     <div class="relative bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 aspect-video flex items-center justify-center shadow-lg">
       <video id="user-video" autoplay playsinline muted class="w-full h-full object-cover mirror hidden"></video>
-      <canvas id="frame-canvas" class="hidden"></canvas>
       <div id="cam-off-msg" class="flex flex-col items-center text-slate-500 p-4 text-center">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -127,7 +126,6 @@
       var cameraStream = null;
       var fullResponseText = '';
       var isListening = false;
-      var frameInterval = null;
 
       var wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
       var ws = new WebSocket(wsProtocol + '//' + location.host);
@@ -135,7 +133,6 @@
       var connDot = document.getElementById('conn-dot');
       var connText = document.getElementById('conn-text');
       var userVideo = document.getElementById('user-video');
-      var frameCanvas = document.getElementById('frame-canvas');
       var camOffMsg = document.getElementById('cam-off-msg');
       var camBtn = document.getElementById('cam-btn');
       var micBtn = document.getElementById('mic-btn');
@@ -177,7 +174,7 @@
         }
       });
 
-      // הפעלת מצלמה + שליחת פריימים לשרת
+      // הפעלת מצלמה מקומית בטלפון
       camBtn.addEventListener('click', function() {
         if (!isCamOn) {
           navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
@@ -188,9 +185,6 @@
               camOffMsg.classList.add('hidden');
               camBtn.classList.replace('bg-slate-700', 'bg-emerald-600');
               isCamOn = true;
-
-              // הזרמת פריימים דרך ה-WS במובייל
-              frameInterval = setInterval(sendFrame, 1500);
             })
             .catch(function(err) {
               alert('לא ניתן לפתוח מצלמה: ודא הרשאות בדפדפן.');
@@ -201,7 +195,6 @@
       });
 
       function stopCamera() {
-        if (frameInterval) clearInterval(frameInterval);
         if (cameraStream) {
           cameraStream.getTracks().forEach(function(track) { track.stop(); });
           cameraStream = null;
@@ -211,16 +204,6 @@
         camOffMsg.classList.remove('hidden');
         camBtn.classList.replace('bg-emerald-600', 'bg-slate-700');
         isCamOn = false;
-      }
-
-      function sendFrame() {
-        if (!isCamOn || ws.readyState !== WebSocket.OPEN) return;
-        var ctx = frameCanvas.getContext('2d');
-        frameCanvas.width = 160;
-        frameCanvas.height = 120;
-        ctx.drawImage(userVideo, 0, 0, frameCanvas.width, frameCanvas.height);
-        var base64 = frameCanvas.toDataURL('image/jpeg', 0.3).split(',')[1];
-        ws.send(JSON.stringify({ type: 'video_frame', data: base64 }));
       }
 
       // מיקרופון
@@ -300,7 +283,6 @@
         }
       };
 
-      // הנפשה ויזואלית מובטחת של תמונת המורה בטלפון
       function triggerSpeakingAnimation(active) {
         if (active) {
           teacherImg.classList.add('speaking-anim', 'scale-105');
