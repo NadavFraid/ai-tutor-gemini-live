@@ -12,15 +12,15 @@ const PORT = process.env.PORT || 3000;
 const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
-  console.error("ERROR: GEMINI_API_KEY is not defined in environment variables!");
+  console.error("ERROR: GEMINI_API_KEY is missing from Environment Variables!");
+} else {
+  console.log("GEMINI_API_KEY loaded successfully.");
 }
 
-const genAI = new GoogleGenerativeAI(apiKey);
+const genAI = new GoogleGenerativeAI(apiKey || '');
 
-// הגשת קבצים סטטיים מתיקיית public
 app.use(express.static(path.join(__dirname, 'public')));
 
-// הגדרות המורה הפרטי
 const SYSTEM_INSTRUCTION = `
 אתה מורה פרטי סבלני, מעודד ומקצועי לתלמיד בכיתה ח' בישראל.
 שמך הוא 'אריאל'.
@@ -38,8 +38,9 @@ wss.on('connection', (ws) => {
       const message = JSON.parse(data);
 
       if (message.type === 'text_query') {
+        // שימוש בדגם gemini-2.0-flash העדכני
         const model = genAI.getGenerativeModel({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-2.0-flash',
           systemInstruction: SYSTEM_INSTRUCTION
         });
 
@@ -52,10 +53,10 @@ wss.on('connection', (ws) => {
         }));
       }
     } catch (err) {
-      console.error('Error processing message:', err);
+      console.error('Detailed Gemini API Error:', err);
       ws.send(JSON.stringify({
         type: 'error',
-        message: 'שגיאה בעיבוד הבקשה'
+        message: `שגיאה בעיבוד הבקשה: ${err.message || 'בדוק את ה-Logs ב-Render'}`
       }));
     }
   });
@@ -66,5 +67,5 @@ wss.on('connection', (ws) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
