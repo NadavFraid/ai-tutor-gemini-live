@@ -2,20 +2,14 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const WebSocket = require('ws');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 const PORT = process.env.PORT || 3000;
-const apiKey = process.env.GEMINI_API_KEY;
-
-if (!apiKey) {
-  console.error("ERROR: GEMINI_API_KEY is not defined in environment variables!");
-}
-
-const genAI = new GoogleGenerativeAI(apiKey || '');
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -28,69 +22,56 @@ const SYSTEM_INSTRUCTION = `
 - ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
 `;
 
-const MODEL_NAME = 'gemini-3.8-flash';
-
-// פונקציה להזרמת תוכן עם ניסיון חוזר אוטומטי במקרה של עומס רגעי (503)
-async function streamWithRetry(model, contents, ws, retries = 3, delayMs = 600) {
-  try {
-    const resultStream = await model.generateContentStream({ contents });
-    return resultStream;
-  } catch (err) {
-    if (retries > 0 && (err.status === 503 || err.status === 429 || (err.message && err.message.includes('503')))) {
-      console.log(`[LOG] 503/High demand encountered. Retrying in ${delayMs}ms... (${retries} retries left)`);
-      await new Promise(res => setTimeout(res, delayMs));
-      return streamWithRetry(model, contents, ws, retries - 1, delayMs * 1.5);
-    }
-    throw err;
-  }
-}
-
 wss.on('connection', (ws) => {
-  console.log('[LOG] Client connected via WebSocket');
-  const history = [];
+  console.log('[LOG] Client connected');
+  
+  // היסטוריית השיחה
+  const messages = [
+    { role: 'system', content: SYSTEM_INSTRUCTION }
+  ];
 
   ws.on('message', async (data) => {
     const startTime = Date.now();
     try {
-      const message = JSON.parse(data);
-      console.log(`[LOG] Query received: "${message.text}" using model: ${MODEL_NAME}`);
+      const parsed = JSON.parse(data);
+      if (parsed.type === 'text_query') {
+        console.log(`[LOG] User question: "${parsed.text}"`);
 
-      const model = genAI.getGenerativeModel({
-        model: MODEL_NAME,
-        systemInstruction: SYSTEM_INSTRUCTION,
-        generationConfig: {
-          maxOutputTokens: 250, // הגבלת אורך התשובה למקסום מהירות התגובה
-          temperature: 0.7
+        messages.push({ role: 'user', content: parsed.text });
+
+        // קריאה מהירה במיוחד ל-Groq עם הזרמה (Streaming)
+        const stream = await groq.chat.completions.create({
+          messages: messages,
+          model: 'llama-3.1-70b-versatile', // מודל חזק ומהיר במיוחד
+          temperature: 0.6,
+          max_tokens: 300,
+          stream: true,
+        });
+
+        let fullText = '';
+        let firstChunk = true;
+
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content || '';
+          if (content) {
+            if (firstChunk) {
+              console.log(`[LOG] First token received in ${Date.now() - startTime}ms`);
+              firstChunk = false;
+            }
+            fullText += content;
+            ws.send(JSON.stringify({ type: 'text_chunk', text: content }));
+          }
         }
-      });
 
-      history.push({ role: 'user', parts: [{ text: message.text }] });
-
-      // ביצוע קריאה מוגנת בעומס
-      const resultStream = await streamWithRetry(model, history, ws);
-
-      let fullModelResponse = '';
-      let firstChunk = true;
-
-      for await (const chunk of resultStream.stream) {
-        if (firstChunk) {
-          console.log(`[LOG] First chunk received in ${Date.now() - startTime}ms`);
-          firstChunk = false;
-        }
-        const chunkText = chunk.text();
-        fullModelResponse += chunkText;
-        ws.send(JSON.stringify({ type: 'text_chunk', text: chunkText }));
+        messages.push({ role: 'assistant', content: fullText });
+        console.log(`[LOG] Response completed in ${Date.now() - startTime}ms`);
+        ws.send(JSON.stringify({ type: 'stream_end' }));
       }
-
-      history.push({ role: 'model', parts: [{ text: fullModelResponse }] });
-      console.log(`[LOG] Response finished in ${Date.now() - startTime}ms`);
-      ws.send(JSON.stringify({ type: 'stream_end' }));
-
     } catch (err) {
-      console.error('[ERROR] Request failed:', err);
+      console.error('[ERROR] Groq API error:', err);
       ws.send(JSON.stringify({
         type: 'error',
-        message: 'היה עומס זמני בשרת, נסה לשלוח את ההודעה שוב.'
+        message: 'חלה שגיאה בתקשורת. נסה לשאול שוב.'
       }));
     }
   });
