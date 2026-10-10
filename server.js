@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
-  console.error("ERROR: GEMINI_API_KEY is not defined!");
+  console.error("ERROR: GEMINI_API_KEY is not defined in environment variables!");
 }
 
 const genAI = new GoogleGenerativeAI(apiKey || '');
@@ -28,15 +28,38 @@ const SYSTEM_INSTRUCTION = `
 - ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
 `;
 
-// פונקציה לזיהוי אקטיבי של המודל הנתמך הזמין בחשבון
-async function getWorkingModelName() {
+let activeModelName = null;
+
+// פונקציה לזיהוי אקטיבי של המודל הזמין ב-API Key
+async function discoverWorkingModel() {
   try {
-    // ננסה להשתמש במודל הסטנדרטי השכיח
-    return 'gemini-1.5-flash-latest';
+    console.log('[LOG] Fetching available models from Google API...');
+    // ניסיון ראשון: בדיקה מול מודלים נפוצים
+    const testCandidates = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    
+    for (const candidate of testCandidates) {
+      try {
+        const testModel = genAI.getGenerativeModel({ model: candidate });
+        await testModel.generateContent('ping');
+        console.log(`[SUCCESS] Found working model: ${candidate}`);
+        return candidate;
+      } catch (e) {
+        console.log(`[LOG] Model ${candidate} not available (${e.status || e.message})`);
+      }
+    }
   } catch (err) {
-    return 'gemini-1.5-flash';
+    console.error('[ERROR] Model discovery failed:', err);
   }
+  
+  // ברירת מחדל במידה ולא נמצע במבחן המהיר
+  return 'gemini-2.0-flash';
 }
+
+// זיהוי המודל בעת עליית השרת
+discoverWorkingModel().then(name => {
+  activeModelName = name;
+  console.log(`[SERVER READY] Using active model: ${activeModelName}`);
+});
 
 wss.on('connection', (ws) => {
   console.log('[LOG] Client connected via WebSocket');
@@ -46,11 +69,15 @@ wss.on('connection', (ws) => {
     const startTime = Date.now();
     try {
       const message = JSON.parse(data);
-      console.log(`[LOG] User asked: "${message.text}"`);
 
-      // שימוש בגרסה היציבה שנקראת flash-latest
+      if (!activeModelName) {
+        activeModelName = await discoverWorkingModel();
+      }
+
+      console.log(`[LOG] Using model ${activeModelName} for query: "${message.text}"`);
+
       const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash-latest',
+        model: activeModelName,
         systemInstruction: SYSTEM_INSTRUCTION
       });
 
@@ -63,7 +90,7 @@ wss.on('connection', (ws) => {
 
       for await (const chunk of resultStream.stream) {
         if (firstChunk) {
-          console.log(`[LOG] Response started in ${Date.now() - startTime}ms`);
+          console.log(`[LOG] First chunk received in ${Date.now() - startTime}ms`);
           firstChunk = false;
         }
         const chunkText = chunk.text();
@@ -72,30 +99,14 @@ wss.on('connection', (ws) => {
       }
 
       history.push({ role: 'model', parts: [{ text: fullModelResponse }] });
-      console.log(`[LOG] Completed in ${Date.now() - startTime}ms`);
       ws.send(JSON.stringify({ type: 'stream_end' }));
 
     } catch (err) {
-      console.error('[ERROR] Details:', err);
-      
-      // אם יש שגיאה עם gemini-1.5-flash-latest, ננסה גיבוי יציב
-      try {
-        console.log('[LOG] Retrying with fallback model gemini-pro...');
-        const fallbackModel = genAI.getGenerativeModel({
-          model: 'gemini-pro',
-          systemInstruction: SYSTEM_INSTRUCTION
-        });
-        
-        const message = JSON.parse(data);
-        const result = await fallbackModel.generateContent(message.text);
-        ws.send(JSON.stringify({ type: 'text_chunk', text: result.response.text() }));
-        ws.send(JSON.stringify({ type: 'stream_end' }));
-      } catch (fallbackErr) {
-        ws.send(JSON.stringify({
-          type: 'error',
-          message: `שגיאת תקשורת מול גוגל: ${err.message}`
-        }));
-      }
+      console.error('[ERROR] Request failed:', err);
+      ws.send(JSON.stringify({
+        type: 'error',
+        message: `שגיאה בתקשורת: ${err.message}`
+      }));
     }
   });
 
