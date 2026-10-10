@@ -28,8 +28,22 @@ const SYSTEM_INSTRUCTION = `
 - ענה בקצרה ובמהירות (1-2 משפטים קצרים בלבד בכל תגובה).
 `;
 
-// הגדרת המודל הנתמך הראשי לפי הוראת גוגל
 const MODEL_NAME = 'gemini-3.8-flash';
+
+// פונקציה להזרמת תוכן עם ניסיון חוזר אוטומטי במקרה של עומס רגעי (503)
+async function streamWithRetry(model, contents, ws, retries = 3, delayMs = 600) {
+  try {
+    const resultStream = await model.generateContentStream({ contents });
+    return resultStream;
+  } catch (err) {
+    if (retries > 0 && (err.status === 503 || err.status === 429 || (err.message && err.message.includes('503')))) {
+      console.log(`[LOG] 503/High demand encountered. Retrying in ${delayMs}ms... (${retries} retries left)`);
+      await new Promise(res => setTimeout(res, delayMs));
+      return streamWithRetry(model, contents, ws, retries - 1, delayMs * 1.5);
+    }
+    throw err;
+  }
+}
 
 wss.on('connection', (ws) => {
   console.log('[LOG] Client connected via WebSocket');
@@ -43,12 +57,17 @@ wss.on('connection', (ws) => {
 
       const model = genAI.getGenerativeModel({
         model: MODEL_NAME,
-        systemInstruction: SYSTEM_INSTRUCTION
+        systemInstruction: SYSTEM_INSTRUCTION,
+        generationConfig: {
+          maxOutputTokens: 250, // הגבלת אורך התשובה למקסום מהירות התגובה
+          temperature: 0.7
+        }
       });
 
       history.push({ role: 'user', parts: [{ text: message.text }] });
 
-      const resultStream = await model.generateContentStream({ contents: history });
+      // ביצוע קריאה מוגנת בעומס
+      const resultStream = await streamWithRetry(model, history, ws);
 
       let fullModelResponse = '';
       let firstChunk = true;
@@ -71,7 +90,7 @@ wss.on('connection', (ws) => {
       console.error('[ERROR] Request failed:', err);
       ws.send(JSON.stringify({
         type: 'error',
-        message: `שגיאה: ${err.message || 'תקלת תקשורת מול Google'}`
+        message: 'היה עומס זמני בשרת, נסה לשלוח את ההודעה שוב.'
       }));
     }
   });
