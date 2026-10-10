@@ -20,27 +20,27 @@
         <h1 class="text-lg font-bold text-indigo-400">🎓 שיחת וידאו עם מורה פרטי</h1>
         <p class="text-xs text-slate-400">בחר מורה ולחץ על הלחצנים למטה</p>
       </div>
-      <span id="conn-status" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        מחובר
+      <span id="conn-status" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+        <span id="conn-dot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+        <span id="conn-text">מתחבר...</span>
       </span>
     </div>
 
     <!-- גלריית מורים לבחירה -->
     <div class="flex gap-2 overflow-x-auto py-1 no-scrollbar">
-      <button id="t-btn-0" type="button" class="teacher-btn border-2 border-indigo-500 rounded-xl p-1 bg-slate-800 flex items-center gap-2 min-w-[100px] transition cursor-pointer">
+      <button id="t-btn-0" type="button" onclick="selectTeacher(0)" class="teacher-btn border-2 border-indigo-500 rounded-xl p-1 bg-slate-800 flex items-center gap-2 min-w-[100px] transition cursor-pointer">
         <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" class="w-8 h-8 rounded-full object-cover">
         <span class="text-xs font-medium">אריאל</span>
       </button>
-      <button id="t-btn-1" type="button" class="teacher-btn border border-slate-700 rounded-xl p-1 bg-slate-800 flex items-center gap-2 min-w-[100px] transition opacity-70 cursor-pointer">
+      <button id="t-btn-1" type="button" onclick="selectTeacher(1)" class="teacher-btn border border-slate-700 rounded-xl p-1 bg-slate-800 flex items-center gap-2 min-w-[100px] transition opacity-70 cursor-pointer">
         <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80" class="w-8 h-8 rounded-full object-cover">
         <span class="text-xs font-medium">מיה</span>
       </button>
-      <button id="t-btn-2" type="button" class="teacher-btn border border-slate-700 rounded-xl p-1 bg-slate-800 flex items-center gap-2 min-w-[100px] transition opacity-70 cursor-pointer">
+      <button id="t-btn-2" type="button" onclick="selectTeacher(2)" class="teacher-btn border border-slate-700 rounded-xl p-1 bg-slate-800 flex items-center gap-2 min-w-[100px] transition opacity-70 cursor-pointer">
         <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=150&q=80" class="w-8 h-8 rounded-full object-cover">
         <span class="text-xs font-medium">נועם</span>
       </button>
-      <button id="t-btn-3" type="button" class="teacher-btn border border-slate-700 rounded-xl p-1 bg-slate-800 flex items-center gap-2 min-w-[100px] transition opacity-70 cursor-pointer">
+      <button id="t-btn-3" type="button" onclick="selectTeacher(3)" class="teacher-btn border border-slate-700 rounded-xl p-1 bg-slate-800 flex items-center gap-2 min-w-[100px] transition opacity-70 cursor-pointer">
         <img src="https://images.unsplash.com/photo-1580894732413-b7ce29a8880d?auto=format&fit=crop&w=150&q=80" class="w-8 h-8 rounded-full object-cover">
         <span class="text-xs font-medium">שירה</span>
       </button>
@@ -91,14 +91,14 @@
   <footer class="bg-slate-800/80 backdrop-blur-md p-3 rounded-2xl border border-slate-700 flex items-center justify-around">
     
     <!-- כפתור מצלמה -->
-    <button id="cam-btn" type="button" class="p-3 bg-slate-700 hover:bg-slate-600 active:scale-95 text-white rounded-full transition shadow cursor-pointer">
+    <button id="cam-btn" type="button" onclick="toggleCamera()" class="p-3 bg-slate-700 hover:bg-slate-600 active:scale-95 text-white rounded-full transition shadow cursor-pointer">
       <svg class="h-6 w-6 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
       </svg>
     </button>
 
     <!-- כפתור מיקרופון -->
-    <button id="mic-btn" type="button" class="p-4 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-full transition shadow-lg w-16 h-16 flex items-center justify-center cursor-pointer">
+    <button id="mic-btn" type="button" onclick="toggleMic()" class="p-4 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-full transition shadow-lg w-16 h-16 flex items-center justify-center cursor-pointer">
       <svg class="h-8 w-8 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z" />
       </svg>
@@ -107,13 +107,180 @@
   </footer>
 
   <script>
-    const teachers = [
+    var teachers = [
       { name: 'אריאל', img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80', badge: '👨‍🏫 אריאל (מורה פרטי)' },
       { name: 'מיה', img: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80', badge: '👩‍🏫 מיה (מורה פרטית)' },
       { name: 'נועם', img: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=600&q=80', badge: '👨‍🏫 נועם (מורה פרטי)' },
       { name: 'שירה', img: 'https://images.unsplash.com/photo-1580894732413-b7ce29a8880d?auto=format&fit=crop&w=600&q=80', badge: '👩‍🏫 שירה (מורה פרטית)' }
     ];
 
-    let currentTeacherIndex = 0;
-    let isCamOn = false;
-    let cameraStream = null;
+    var currentTeacherIndex = 0;
+    var isCamOn = false;
+    var cameraStream = null;
+    var fullResponseText = '';
+    var isListening = false;
+
+    // התאמת פרוטוקול WebSocket אוטומטית (wss למאובטח / ws לרגיל)
+    var wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    var ws = new WebSocket(wsProtocol + '//' + location.host);
+
+    var connDot = document.getElementById('conn-dot');
+    var connText = document.getElementById('conn-text');
+    var userVideo = document.getElementById('user-video');
+    var camOffMsg = document.getElementById('cam-off-msg');
+    var camBtn = document.getElementById('cam-btn');
+    var micBtn = document.getElementById('mic-btn');
+    var captions = document.getElementById('captions');
+    var teacherImg = document.getElementById('teacher-img');
+    var speakingOverlay = document.getElementById('speaking-overlay');
+    var teacherBadge = document.getElementById('teacher-badge');
+    var teacherSpeakingText = document.getElementById('teacher-speaking-text');
+
+    ws.onopen = function() {
+      connDot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+      connText.innerText = 'מחובר';
+    };
+
+    ws.onclose = function() {
+      connDot.className = 'w-2 h-2 rounded-full bg-red-500';
+      connText.innerText = 'מנותק';
+    };
+
+    function selectTeacher(index) {
+      currentTeacherIndex = index;
+      var t = teachers[index];
+      teacherImg.src = t.img;
+      teacherBadge.innerText = t.badge;
+      teacherSpeakingText.innerText = t.name + ' מדבר/ת...';
+
+      for (var i = 0; i < teachers.length; i++) {
+        var btn = document.getElementById('t-btn-' + i);
+        if (btn) {
+          btn.className = (i === index)
+            ? 'teacher-btn border-2 border-indigo-500 rounded-xl p-1 bg-slate-800 flex items-center gap-2 min-w-[100px] transition opacity-100 cursor-pointer'
+            : 'teacher-btn border border-slate-700 rounded-xl p-1 bg-slate-800 flex items-center gap-2 min-w-[100px] transition opacity-70 cursor-pointer';
+        }
+      }
+    }
+
+    async function toggleCamera() {
+      if (!isCamOn) {
+        try {
+          cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          userVideo.srcObject = cameraStream;
+          userVideo.classList.remove('hidden');
+          camOffMsg.classList.add('hidden');
+          camBtn.classList.replace('bg-slate-700', 'bg-emerald-600');
+          isCamOn = true;
+        } catch (err) {
+          alert('לא ניתן לפתוח את המצלמה. אנא ודא הרשאות מצלמה בדפדפן.');
+        }
+      } else {
+        if (cameraStream) {
+          cameraStream.getTracks().forEach(function(track) { track.stop(); });
+          cameraStream = null;
+        }
+        userVideo.srcObject = null;
+        userVideo.classList.add('hidden');
+        camOffMsg.classList.remove('hidden');
+        camBtn.classList.replace('bg-emerald-600', 'bg-slate-700');
+        isCamOn = false;
+      }
+    }
+
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var recognition = null;
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.lang = 'he-IL';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = function() {
+        isListening = true;
+        micBtn.classList.replace('bg-indigo-600', 'bg-red-500');
+        micBtn.classList.add('animate-pulse');
+        captions.innerText = 'מקשיב לך... (דבר עכשיו)';
+      };
+
+      recognition.onresult = function(event) {
+        var transcript = event.results[0][0].transcript;
+        if (transcript) {
+          captions.innerText = 'אתה: "' + transcript + '"';
+          ws.send(JSON.stringify({ type: 'text_query', text: transcript }));
+        }
+      };
+
+      recognition.onerror = function() {
+        stopListening();
+        captions.innerText = 'לא הצלחתי לשמוע. לחץ שוב על המיקרופון.';
+      };
+
+      recognition.onend = function() {
+        stopListening();
+      };
+    }
+
+    function stopListening() {
+      isListening = false;
+      micBtn.classList.replace('bg-red-500', 'bg-indigo-600');
+      micBtn.classList.remove('animate-pulse');
+    }
+
+    function toggleMic() {
+      if (!recognition) return alert('הדפדפן אינו תומך בזיהוי קולי');
+
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+
+      if (isListening) {
+        recognition.stop();
+      } else {
+        try {
+          recognition.start();
+        } catch (e) {
+          stopListening();
+        }
+      }
+    }
+
+    ws.onmessage = function(event) {
+      var data = JSON.parse(event.data);
+
+      if (data.type === 'text_chunk') {
+        if (!fullResponseText) fullResponseText = '';
+        fullResponseText += data.text;
+        var activeName = teachers[currentTeacherIndex].name;
+        captions.innerText = activeName + ': "' + fullResponseText + '"';
+      } else if (data.type === 'stream_end') {
+        speakText(data.fullText || fullResponseText);
+        fullResponseText = '';
+      } else if (data.type === 'error') {
+        captions.innerText = 'שגיאה: ' + data.message;
+      }
+    };
+
+    function speakText(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        var utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'he-IL';
+
+        utterance.onstart = function() {
+          teacherImg.classList.add('scale-105');
+          speakingOverlay.classList.remove('hidden');
+        };
+
+        utterance.onend = function() {
+          teacherImg.classList.remove('scale-105');
+          speakingOverlay.classList.add('hidden');
+        };
+
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+  </script>
+</body>
+</html>
